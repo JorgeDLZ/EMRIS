@@ -17,4 +17,6 @@ urlpatterns = [
     ),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path("pending/", views.pending, name="pending"),
+    path("users/", views.user_list, name="user_list"),
+    path("users/<int:pk>/role/", views.user_role, name="user_role"),
 ]

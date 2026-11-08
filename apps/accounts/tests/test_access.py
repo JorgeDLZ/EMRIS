@@ -38,7 +38,6 @@ def test_user_without_role_sees_pending_on_home(client, db):
     assert response.url == reverse("accounts:pending")
 
 
-@pytest.mark.urls("apps.accounts.tests.urls")
 def test_user_without_role_direct_url_sees_pending(client, db):
     client.force_login(make_user())
     response = client.get("/accounts/users/")
@@ -46,7 +45,6 @@ def test_user_without_role_direct_url_sees_pending(client, db):
     assert response.url == reverse("accounts:pending")
 
 
-@pytest.mark.urls("apps.accounts.tests.urls")
 def test_decorator_role_not_allowed_returns_403_page(client, db):
     client.force_login(make_user(role=OPERATOR))
     response = client.get("/accounts/users/")
@@ -54,7 +52,6 @@ def test_decorator_role_not_allowed_returns_403_page(client, db):
     assert "Access denied" in response.content.decode()
 
 
-@pytest.mark.urls("apps.accounts.tests.urls")
 def test_decorator_anonymous_redirects_to_login(client, db):
     response = client.get("/accounts/users/")
     assert response.status_code == 302

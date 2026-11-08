@@ -12,6 +12,7 @@
     <a class="brand" href="{% url 'home' %}">EMRIS</a>
     <nav>
       {% if user.is_authenticated %}
+        {% if user.is_administrator %}<a href="{% url 'accounts:user_list' %}">Users</a>{% endif %}
         <span class="user">{{ user.username }}{% if user.role_label %} · {{ user.role_label }}{% endif %}</span>
         <form method="post" action="{% url 'accounts:logout' %}">
           {% csrf_token %}

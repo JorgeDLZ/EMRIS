@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}EMRIS — Users{% endblock %}
+
+{% block content %}
+  <h1>Users</h1>
+  {% if messages %}
+    <ul class="messages">
+      {% for message in messages %}
+        <li class="{{ message.tags }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+  <table>
+    <thead>
+      <tr><th>Username</th><th>Organization</th><th>Role</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for item in users %}
+        <tr>
+          <td>{{ item.username }}</td>
+          <td>{{ item.organization }}</td>
+          <td>{{ item.role_label|default:"No role" }}</td>
+          <td><a href="{% url 'accounts:user_role' item.pk %}">Change role</a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
