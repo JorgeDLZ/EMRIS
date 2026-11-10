@@ -13,6 +13,7 @@ from sklearn.metrics import (
 )
 
 TEST_MONTHS = 3
+DEFAULT_THRESHOLD = 0.5
 
 
 @dataclass(frozen=True)
@@ -49,7 +50,7 @@ def temporal_masks(frame, split):
 
 def best_f1_threshold(y_true, scores):
     if not np.any(y_true):
-        return 0.5
+        return DEFAULT_THRESHOLD
     precision, recall, thresholds = precision_recall_curve(y_true, scores)
     denominator = precision[:-1] + recall[:-1]
     f1 = np.divide(

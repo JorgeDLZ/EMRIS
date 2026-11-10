@@ -36,9 +36,9 @@ def report_time_features(frame: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def _one_hot(dense: bool) -> OneHotEncoder:
+def _one_hot(dense: bool, handle_unknown: str) -> OneHotEncoder:
     return OneHotEncoder(
-        handle_unknown="infrequent_if_exist",
+        handle_unknown=handle_unknown,
         min_frequency=MIN_CATEGORY_COUNT,
         sparse_output=not dense,
     )
@@ -47,9 +47,9 @@ def _one_hot(dense: bool) -> OneHotEncoder:
 def impact_preprocessor(dense: bool = False) -> ColumnTransformer:
     return ColumnTransformer(
         [
-            ("event_type", _one_hot(dense), ["event_type"]),
-            ("department", _one_hot(dense), ["department"]),
-            ("municipality", _one_hot(dense), ["municipality"]),
+            ("event_type", _one_hot(dense, "infrequent_if_exist"), ["event_type"]),
+            ("department", _one_hot(dense, "ignore"), ["department"]),
+            ("municipality", _one_hot(dense, "ignore"), ["municipality"]),
             ("month", "passthrough", ["month_sin", "month_cos"]),
         ]
     )

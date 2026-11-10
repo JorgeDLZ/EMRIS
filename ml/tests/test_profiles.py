@@ -10,7 +10,6 @@ from ml.data import load_frame
 from ml.features import IMPACT_VARIABLES
 from ml.profiles import (
     COMPONENT,
-    MINOR_IMPACT,
     NO_RECORDED_IMPACT,
     PRIMARY_METRIC,
     PROFILE_PENDING,

@@ -9,6 +9,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
 from ml.evaluation import (
+    DEFAULT_THRESHOLD,
     TrainResult,
     best_f1_threshold,
     classification_metrics,
@@ -190,6 +191,13 @@ def _candidate_scores(fitted, part):
     return fitted.predict_proba(report_time_features(part))[:, 1]
 
 
+def _validation_threshold(name, fit_part, validation, validation_labels):
+    if validation.empty:
+        return DEFAULT_THRESHOLD
+    fitted = _fit_candidate(name, fit_part)
+    return best_f1_threshold(validation_labels, _candidate_scores(fitted, validation))
+
+
 def train_impact(frame):
     validate_frame(frame, required=REQUIRED_COLUMNS)
     masks = temporal_masks(frame, split_dates(frame["occurred_on"]))
@@ -200,9 +208,8 @@ def train_impact(frame):
 
     thresholds, test_metrics, train_fits = {}, {}, {}
     for name in (LOGISTIC_REGRESSION, GRADIENT_BOOSTING, BASELINE):
-        fitted = _fit_candidate(name, frame[masks["fit"]])
-        thresholds[name] = best_f1_threshold(
-            validation_labels, _candidate_scores(fitted, validation)
+        thresholds[name] = _validation_threshold(
+            name, frame[masks["fit"]], validation, validation_labels
         )
         train_fits[name] = _fit_candidate(name, frame[masks["train"]])
         test_metrics[name] = classification_metrics(

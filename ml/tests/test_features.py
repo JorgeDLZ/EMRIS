@@ -54,13 +54,14 @@ def test_rare_and_unknown_categories():
     preprocessor.fit(report_time_features(frame))
     names = list(preprocessor.get_feature_names_out())
     infrequent = names.index("municipality__municipality_infrequent_sklearn")
+    municipality = preprocessor.output_indices_["municipality"]
 
     seen_twice = report_time_features(frame[frame["municipality"] == "77777"].iloc[:1])
+    assert preprocessor.transform(seen_twice)[0, infrequent] == 1.0
+
     unseen = seen_twice.copy()
     unseen["municipality"] = "99999"
-    for sample in (seen_twice, unseen):
-        encoded = preprocessor.transform(sample)
-        assert encoded[0, infrequent] == 1.0
+    assert not preprocessor.transform(unseen)[0, municipality].any()
 
 
 def test_log_impact_and_recorded_impact(synthetic_frame):

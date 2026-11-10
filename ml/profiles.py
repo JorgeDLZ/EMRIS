@@ -35,7 +35,8 @@ REQUIRED_COLUMNS = (*IMPACT_VARIABLES, "has_impact")
 def name_profiles(centroids: np.ndarray, sizes: Sequence[int]) -> list[str]:
     names = []
     for centroid in centroids:
-        strong = [i for i in np.argsort(-centroid) if centroid[i] >= STRONG_Z][:2]
+        order = np.argsort(-centroid, kind="stable")
+        strong = [i for i in order if centroid[i] >= STRONG_Z][:2]
         labels = [VARIABLE_LABELS[IMPACT_VARIABLES[i]] for i in strong]
         if not labels:
             names.append(MINOR_IMPACT)

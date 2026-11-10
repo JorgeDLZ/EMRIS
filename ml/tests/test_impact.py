@@ -23,6 +23,7 @@ from ml.impact import (
     fit_pipeline,
     train_impact,
 )
+from ml.tests.conftest import make_synthetic_frame
 
 ROOT = Path(__file__).resolve().parents[2]
 UNGRD = ROOT / "data" / "ungrd_emergencies_v2.csv"
@@ -92,6 +93,13 @@ def test_train_returns_result(synthetic_frame):
     probabilities = result.model.probability(synthetic_frame)
     assert probabilities.shape == (600,)
     assert ((probabilities >= 0) & (probabilities <= 1)).all()
+
+
+def test_empty_validation_month_uses_default_threshold():
+    frame = make_synthetic_frame()
+    frame = frame[frame["occurred_on"].map(lambda d: d.month != 9)]
+    result = train_impact(frame)
+    assert result.metrics["threshold"] == 0.5
 
 
 def test_prediction_ignores_impact_data(synthetic_frame):

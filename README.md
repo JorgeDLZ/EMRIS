@@ -16,7 +16,7 @@ EMRIS (Emergency Management & Resource Information System) is a web application 
 
 ## Machine learning
 
-Four components, trained and evaluated on the 2025 UNGRD history with a time-based split: train on January–September, test on October–December. They live in the `ml/` package, which has no Django dependency, and are not yet connected to the web application.
+Four components, trained on the 2025 UNGRD history. The impact estimator and similar emergencies are evaluated with a time-based split: train on January–September, test on October–December. Emergency profiles and municipal risk are fitted and scored on the whole year. The components live in the `ml/` package, which has no Django dependency, and are not yet connected to the web application.
 
 | Component | Technique | Evaluation |
 |---|---|---|
@@ -29,11 +29,11 @@ Four components, trained and evaluated on the 2025 UNGRD history with a time-bas
 
 Five notebooks document the exploration and the models:
 
-1. `01_exploration`
-2. `02_impact_estimator`
-3. `03_emergency_profiles`
-4. `04_similar_emergencies`
-5. `05_municipal_risk`
+1. `01_exploration.ipynb`
+2. `02_impact_estimator.ipynb`
+3. `03_emergency_profiles.ipynb`
+4. `04_similar_emergencies.ipynb`
+5. `05_municipal_risk.ipynb`
 
 ```bash
 pip install -r requirements-notebooks.txt
@@ -45,6 +45,7 @@ Notebook outputs are cleared before committing. The notebook tools are not neede
 ## Stack
 
 - Python 3.12, Django 5.2
+- pandas and scikit-learn for the machine learning components
 - PostgreSQL on Supabase (database only); SQLite for local development
 - WhiteNoise for static files, Gunicorn as the application server
 - Render for hosting, GitHub Actions for continuous integration

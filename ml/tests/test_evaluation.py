@@ -3,7 +3,6 @@ from datetime import date
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from ml.data import load_frame
@@ -54,6 +53,7 @@ def test_best_threshold():
 
 def test_threshold_without_positives():
     assert best_f1_threshold(np.zeros(4, dtype=int), SCORES) == 0.5
+    assert best_f1_threshold(np.zeros(0, dtype=int), np.zeros(0)) == 0.5
 
 
 def test_classification_metrics():

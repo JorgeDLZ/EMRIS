@@ -70,6 +70,18 @@ def test_query_is_not_its_own_neighbor(synthetic_frame):
         assert row not in {n.reference for n in found}
 
 
+def test_neighbors_do_not_depend_on_batch(synthetic_frame):
+    model = fit_similarity(synthetic_frame)
+    rows = synthetic_frame.iloc[[3, 40, 41, 300, 598]]
+    together = model.neighbors(rows)
+    for position in range(len(rows)):
+        assert model.neighbors(rows.iloc[[position]])[0] == together[position]
+    without_impact = rows.assign(has_impact=False)
+    together = model.neighbors(without_impact)
+    for position in range(len(rows)):
+        assert model.neighbors(without_impact.iloc[[position]])[0] == together[position]
+
+
 def test_unknown_categories_still_get_neighbors(synthetic_frame):
     model = fit_similarity(synthetic_frame)
     query = query_from(
@@ -130,8 +142,12 @@ def test_metrics_shape_and_joblib(synthetic_frame):
     assert restored.neighbors(rows) == result.model.neighbors(rows)
 
 
-def test_real_data_similarity():
-    m = train_similarity(load_frame(UNGRD, DIVIPOLA)).metrics
+def test_real_data_similarity_and_model_pickle_is_small():
+    result = train_similarity(load_frame(UNGRD, DIVIPOLA))
+    buffer = io.BytesIO()
+    joblib.dump(result.model, buffer)
+    assert len(buffer.getvalue()) < 10_000_000
+    m = result.metrics
     assert m["test_rows"] == 993 and m["reference_rows"] == 6505
     assert round(m["precision_at_5"], 2) == 0.94
     assert round(m["precision_at_5_without_impact"], 2) == 0.78
