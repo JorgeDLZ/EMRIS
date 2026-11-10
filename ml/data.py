@@ -84,6 +84,18 @@ NUMERIC_COLUMNS = {
     "hectares": "HECTAREAS",
 }
 
+REQUIRED_COLUMNS = {
+    "FECHA",
+    "DEPARTAMENTO",
+    "MUNICIPIO",
+    "EVENTO",
+    "CODIGO EMERGENCIA",
+    "COMENTARIOS",
+    "PPUENTES VEHICULARES",
+    "PPUENTES PEATONALES",
+    *NUMERIC_COLUMNS.values(),
+}
+
 RECORD_COLUMNS = [
     "source_row", "source_code", "occurred_on", "department_key", "municipality_key",
     "event_type", "deceased", "injured", "missing", "people_affected",
@@ -125,6 +137,9 @@ def high_impact_mask(df: pd.DataFrame) -> pd.Series:
 
 def clean_ungrd(path) -> CleanResult:
     raw = pd.read_csv(Path(path), dtype=str, keep_default_na=False)
+    missing = REQUIRED_COLUMNS - set(raw.columns)
+    if missing:
+        raise ValueError(f"UNGRD file is missing columns: {', '.join(sorted(missing))}")
     event_type = raw["EVENTO"].map(lambda value: EVENT_TYPE_LABELS.get(normalize_name(value)))
     occurred_on = pd.to_datetime(raw["FECHA"], format=DATE_FORMAT, errors="coerce")
     unknown_event = event_type.isna()

@@ -4,8 +4,9 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
-from ml.data import clean_ungrd, high_impact_mask, parse_number
+from ml.data import MUNICIPALITY_ALIASES, clean_ungrd, high_impact_mask, parse_number
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "data"
@@ -127,8 +128,42 @@ def test_department_level_row_has_no_municipality(tmp_path):
     assert records["source_row"].tolist() == [1, 2]
 
 
+def test_missing_column_is_reported(tmp_path):
+    frame = pd.DataFrame([row()], columns=COLUMNS).drop(columns=["HECTAREAS"])
+    path = tmp_path / "small.csv"
+    frame.to_csv(path, index=False, quoting=1)
+
+    with pytest.raises(ValueError, match="UNGRD file is missing columns: HECTAREAS"):
+        clean_ungrd(path)
+
+
+def test_bridges_are_summed(tmp_path):
+    path = write_csv(
+        tmp_path / "small.csv",
+        [row(**{"PPUENTES VEHICULARES": "2", "PPUENTES PEATONALES": "1,000"})],
+    )
+
+    records = clean_ungrd(path).records
+
+    assert records.iloc[0]["bridges_damaged"] == 1002.0
+
+
+def test_mojibake_comment_is_repaired(tmp_path):
+    path = write_csv(tmp_path / "small.csv", [row(COMENTARIOS="AcciÃ³n: EvacuaciÃ³n")])
+
+    records = clean_ungrd(path).records
+
+    assert records.iloc[0]["comments"] == "Acción: Evacuación"
+    assert records.iloc[0]["action_codes"] == ["evacuate_population"]
+
+
+def test_aliases_point_to_divipola_codes():
+    divipola = pd.read_csv(DATA / "divipola_dane.csv", dtype=str)
+    assert set(MUNICIPALITY_ALIASES.values()) <= set(divipola["municipality_code"])
+
+
 def test_ml_does_not_import_django():
-    for module in (ROOT / "ml").glob("*.py"):
+    for module in (ROOT / "ml").rglob("*.py"):
         tree = ast.parse(module.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):

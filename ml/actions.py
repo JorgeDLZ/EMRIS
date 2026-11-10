@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from ml.text import normalize_name
 
 SECTION_PATTERNS = [
-    re.compile(r"ACCION(?:ES)?\s*:?\s*(.*?)(?=ESTADO\s*:|ACTUALIZACION|$)"),
+    re.compile(r"\bACCION(?:ES)?\s*:?\s*(.*?)(?=ESTADO\s*:|ACTUALIZACION|$)"),
     re.compile(r"ATENDIDO POR\s*:?\s*(.*?)(?=AFECTACION|ESTADO\s*:|\.|$)"),
 ]
 

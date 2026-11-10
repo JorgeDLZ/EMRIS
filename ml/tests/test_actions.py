@@ -47,7 +47,11 @@ def test_labels_are_unique_and_english():
     assert all(label.isascii() for label in labels)
 
 
+def test_section_word_needs_a_word_boundary():
+    assert extract_actions("MUNICIPIO: DISTRACCION. COMUNIDAD AFECTADA ESTADO: CERRADO") == []
+
+
 def test_real_dataset_coverage():
     records = clean_ungrd(DATA / "ungrd_emergencies_v2.csv").records
-    assert (records["action_codes"].str.len() > 0).sum() == 6437
-    assert sum("deploy_fire_brigade" in codes for codes in records["action_codes"]) == 4099
+    assert (records["action_codes"].str.len() > 0).sum() == 6436
+    assert sum("deploy_fire_brigade" in codes for codes in records["action_codes"]) == 4098
