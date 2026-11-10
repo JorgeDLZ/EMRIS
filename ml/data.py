@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from ml.actions import extract_actions
 from ml.text import normalize_name, repair_mojibake
 
 DEPARTMENT_LEVEL = "DEPARTAMENTO"
@@ -87,7 +88,7 @@ RECORD_COLUMNS = [
     "source_row", "source_code", "occurred_on", "department_key", "municipality_key",
     "event_type", "deceased", "injured", "missing", "people_affected",
     "families_affected", "homes_destroyed", "homes_damaged", "roads_damaged",
-    "bridges_damaged", "hectares", "comments", "is_high_impact",
+    "bridges_damaged", "hectares", "comments", "action_codes", "is_high_impact",
 ]
 
 
@@ -153,6 +154,7 @@ def clean_ungrd(path) -> CleanResult:
         "PPUENTES PEATONALES"
     ].map(parse_number)
     records["comments"] = raw["COMENTARIOS"].map(repair_mojibake)
+    records["action_codes"] = records["comments"].map(extract_actions)
 
     records = records[keep].reset_index(drop=True)
     records["is_high_impact"] = high_impact_mask(records)
