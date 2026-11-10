@@ -3,6 +3,7 @@ import os
 import pytest
 
 os.environ.setdefault("DEBUG", "true")
+os.environ["DATABASE_URL"] = "sqlite://:memory:"
 
 
 @pytest.fixture(autouse=True)

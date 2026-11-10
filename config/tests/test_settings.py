@@ -9,6 +9,7 @@ PASSTHROUGH = ("SYSTEMROOT", "PATH")
 
 def run_settings(env_vars, expression="0"):
     env = {key: os.environ[key] for key in PASSTHROUGH if key in os.environ}
+    env.update({"DATABASE_URL": "", "SECRET_KEY": "", "DEBUG": ""})
     env.update(env_vars)
     code = (
         "import json, config.settings as s;"
@@ -40,6 +41,12 @@ def test_default_database_is_sqlite():
     )
     assert result.returncode == 0
     assert result.stdout.strip().strip('"').endswith("sqlite3")
+
+
+def test_pytest_process_uses_sqlite():
+    from django.conf import settings
+
+    assert settings.DATABASES["default"]["ENGINE"].endswith("sqlite3")
 
 
 def test_render_hostname_is_allowed():
