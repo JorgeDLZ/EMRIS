@@ -14,7 +14,33 @@ EMRIS (Emergency Management & Resource Information System) is a web application 
 - Health check endpoint at `/health/`
 - Deployment on Render with a Supabase PostgreSQL database
 
-**Planned:** four machine learning components — impact estimator, emergency profiles, similar emergencies with a suggested action plan, and municipal risk profile.
+## Machine learning
+
+Four components, trained and evaluated on the 2025 UNGRD history with a time-based split: train on January–September, test on October–December. They live in the `ml/` package, which has no Django dependency, and are not yet connected to the web application.
+
+| Component | Technique | Evaluation |
+|---|---|---|
+| Impact estimator | Supervised classification of high-impact emergencies using only fields known at report time (event type, department, municipality, month). Logistic regression and gradient boosting are compared; the decision threshold is tuned on September. | Logistic regression selected: F1 0.51 (recall 0.77, precision 0.38, PR-AUC 0.54). Baseline "same type and municipality": F1 0.48 (PR-AUC 0.41). Gradient boosting: F1 0.50. |
+| Emergency profiles | K-means on log-scaled impact variables; emergencies with no recorded impact are labeled separately. | K = 3 chosen by silhouette (0.51), stable across seeds (ARI 0.98): "Minor impact", "Families affected and people affected", "Injuries and deaths". |
+| Similar emergencies and suggested plan | k-nearest neighbors (k = 5) on type, place, month and impact. Suggested actions are those present in at least 2 of the 5 neighbors. | Precision@5 (same type and impact level): 0.94 with impact data, 0.78 without. Baseline, random neighbors of the same type: 0.75. |
+| Municipal risk | Hierarchical agglomerative clustering (Ward) of municipalities with at least 3 emergencies, using emergency count, share of the three main types, share of high impact, mean impact and shallow seismic activity (M ≥ 4, depth < 70 km, within 50 km, from the SGC catalog). | K = 3 chosen by silhouette (0.21) and dendrogram, stability ARI 0.73. 620 municipalities ranked, 319 with insufficient history. Deep earthquakes of the Bucaramanga nest are excluded, so they do not raise Santander's level. |
+
+## Notebooks
+
+Five notebooks document the exploration and the models:
+
+1. `01_exploration`
+2. `02_impact_estimator`
+3. `03_emergency_profiles`
+4. `04_similar_emergencies`
+5. `05_municipal_risk`
+
+```bash
+pip install -r requirements-notebooks.txt
+jupyter notebook notebooks/
+```
+
+Notebook outputs are cleared before committing. The notebook tools are not needed to run the application or the tests.
 
 ## Stack
 
