@@ -91,7 +91,8 @@ def test_parse_place():
 
 
 def test_aliases_point_to_divipola_codes():
-    codes = {row["municipality_code"] for row in csv.DictReader(open(DATA / "divipola_dane.csv", encoding="utf-8"))}
+    with open(DATA / "divipola_dane.csv", newline="", encoding="utf-8") as handle:
+        codes = {row["municipality_code"] for row in csv.DictReader(handle)}
     assert set(SGC_MUNICIPALITY_ALIASES.values()) <= codes
 
 

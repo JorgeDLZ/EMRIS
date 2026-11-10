@@ -41,6 +41,9 @@ def test_parse_number():
     assert parse_number("20,045") == 20045.0
     assert parse_number("No Registra") == 0.0
     assert parse_number("") == 0.0
+    assert parse_number("nan") == 0.0
+    assert parse_number("inf") == 0.0
+    assert parse_number("-5") == 0.0
 
 
 def test_high_impact_rule_on_synthetic_rows():

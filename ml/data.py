@@ -1,3 +1,4 @@
+import math
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -83,7 +84,6 @@ NUMERIC_COLUMNS = {
     "hectares": "HECTAREAS",
 }
 
-
 RECORD_COLUMNS = [
     "source_row", "source_code", "occurred_on", "department_key", "municipality_key",
     "event_type", "deceased", "injured", "missing", "people_affected",
@@ -100,9 +100,10 @@ class CleanResult:
 
 def parse_number(raw: str) -> float:
     try:
-        return float(raw.replace(",", ""))
+        value = float(raw.replace(",", ""))
     except ValueError:
         return 0.0
+    return value if math.isfinite(value) and value >= 0 else 0.0
 
 
 def _percentile_90_by_type(df: pd.DataFrame, column: str) -> pd.Series:
@@ -128,13 +129,11 @@ def clean_ungrd(path) -> CleanResult:
     occurred_on = pd.to_datetime(raw["FECHA"], format=DATE_FORMAT, errors="coerce")
     unknown_event = event_type.isna()
     bad_date = occurred_on.isna()
-    discarded = Counter(
-        {
-            "unknown event type": int(unknown_event.sum()),
-            "invalid date": int((bad_date & ~unknown_event).sum()),
-        }
-    )
-    discarded += Counter()
+    counts = {
+        "unknown event type": int(unknown_event.sum()),
+        "invalid date": int((bad_date & ~unknown_event).sum()),
+    }
+    discarded = Counter({reason: count for reason, count in counts.items() if count > 0})
     keep = ~(unknown_event | bad_date)
 
     records = pd.DataFrame(

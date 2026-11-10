@@ -61,6 +61,17 @@ def test_unresolved_municipality_is_discarded_with_reason(db, tmp_path):
     assert UngrdRecord.objects.count() == 1
 
 
+def test_unresolved_department_level_row_is_discarded_with_reason(db, tmp_path):
+    path = write_ungrd(
+        tmp_path / "small.csv",
+        [ungrd_row(), ungrd_row(DEPARTAMENTO="NOWHERE", MUNICIPIO="DEPARTAMENTO")],
+    )
+    report = load_baseline(path, DIVIPOLA)
+    assert report.records == 1
+    assert report.discarded["unknown department: NOWHERE"] == 1
+    assert UngrdRecord.objects.count() == 1
+
+
 def test_record_fields_are_stored_as_plain_values(db, tmp_path):
     path = write_ungrd(
         tmp_path / "small.csv",

@@ -39,13 +39,13 @@ For local development set `DEBUG=True` in `.env`. Without `DATABASE_URL`, a loca
 
 ## Data
 
-The files in `data/` are kept exactly as downloaded:
+The UNGRD file in `data/` is kept exactly as downloaded. The other two are derived from official sources:
 
 | File | Source |
 |---|---|
-| `ungrd_emergencies_v2.csv` | "Emergencias UNGRD V2" open dataset from Datos Abiertos Colombia (UNGRD) |
+| `ungrd_emergencies_v2.csv` | "Emergencias UNGRD V2" open dataset from Datos Abiertos Colombia (UNGRD), exactly as downloaded |
 | `divipola_dane.csv` | DANE DIVIPOLA municipality codes, extracted from the official DANE list |
-| `sgc_seismicity_m25.csv` | Servicio Geológico Colombiano seismicity catalog, 2020-06-01 to 2026-11-07, filtered to magnitude 2.5 and above |
+| `sgc_seismicity_m25.csv` | Servicio Geológico Colombiano seismicity catalog, 2020-06-01 to 2026-11-07, filtered to magnitude 2.5 and above with rows unchanged |
 
 Load them after migrating, in this order:
 

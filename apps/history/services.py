@@ -68,7 +68,10 @@ def load_baseline(ungrd_path: str | Path, divipola_path: str | Path) -> Baseline
             row["department_key"], municipality_key, by_code, by_name, departments
         )
         if department is None:
-            reason = f"unknown municipality: {row['department_key']}/{municipality_key or 'DEPARTAMENTO'}"
+            if municipality_key is None:
+                reason = f"unknown department: {row['department_key']}"
+            else:
+                reason = f"unknown municipality: {row['department_key']}/{municipality_key}"
             discarded[reason] += 1
             continue
         instances.append(
