@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "apps.places",
     "apps.emergencies",
     "apps.history",
+    "apps.seismic",
 ]
 
 MIDDLEWARE = [
