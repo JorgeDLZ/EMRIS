@@ -6,9 +6,11 @@ from pathlib import Path
 import pandas as pd
 
 from ml.actions import extract_actions
+from ml.features import FRAME_COLUMNS
 from ml.text import normalize_name, repair_mojibake
 
 DEPARTMENT_LEVEL = "DEPARTAMENTO"
+REFERENCE_PREFIX = "ungrd:"
 
 EVENT_TYPE_LABELS: dict[str, str] = {
     "INCENDIO FORESTAL": "Wildfire",
@@ -173,3 +175,67 @@ def clean_ungrd(path) -> CleanResult:
     records = records[keep].reset_index(drop=True)
     records["is_high_impact"] = high_impact_mask(records)
     return CleanResult(records=records[RECORD_COLUMNS], discarded=discarded)
+
+
+def read_divipola(path) -> pd.DataFrame:
+    raw = pd.read_csv(Path(path), dtype=str, keep_default_na=False)
+    return pd.DataFrame(
+        {
+            "department_code": raw["department_code"],
+            "department_key": raw["department_name"].map(normalize_name),
+            "municipality_code": raw["municipality_code"],
+            "municipality_key": raw["municipality_name"].map(normalize_name),
+            "latitude": raw["latitude"].astype(float),
+            "longitude": raw["longitude"].astype(float),
+        }
+    )
+
+
+def municipality_centroids(divipola: pd.DataFrame) -> dict[str, tuple[float, float]]:
+    return {
+        code: (latitude, longitude)
+        for code, latitude, longitude in zip(
+            divipola["municipality_code"], divipola["latitude"], divipola["longitude"]
+        )
+    }
+
+
+def load_frame(ungrd_path, divipola_path) -> pd.DataFrame:
+    divipola = read_divipola(divipola_path)
+    department_codes = dict(zip(divipola["department_key"], divipola["department_code"]))
+    municipality_codes = {
+        (department, municipality): code
+        for department, municipality, code in zip(
+            divipola["department_key"], divipola["municipality_key"], divipola["municipality_code"]
+        )
+    }
+    known_codes = set(divipola["municipality_code"])
+
+    rows = []
+    for record in clean_ungrd(ungrd_path).records.to_dict("records"):
+        department_key = record["department_key"]
+        municipality_key = record["municipality_key"]
+        if not isinstance(municipality_key, str):
+            department = department_codes.get(department_key)
+            municipality = ""
+        else:
+            municipality = MUNICIPALITY_ALIASES.get((department_key, municipality_key))
+            if municipality not in known_codes:
+                municipality = municipality_codes.get((department_key, municipality_key))
+            department = municipality[:2] if municipality else None
+        if department is None:
+            continue
+        rows.append(
+            {
+                "reference": f"{REFERENCE_PREFIX}{record['source_row']}",
+                "occurred_on": record["occurred_on"],
+                "event_type": record["event_type"],
+                "department": department,
+                "municipality": municipality,
+                **{column: record[column] for column in NUMERIC_COLUMNS},
+                "has_impact": True,
+                "action_codes": list(record["action_codes"]),
+                "is_high_impact": bool(record["is_high_impact"]),
+            }
+        )
+    return pd.DataFrame(rows, columns=list(FRAME_COLUMNS))
