@@ -7,6 +7,10 @@ EMRIS (Emergency Management & Resource Information System) is a web application 
 - User registration and login
 - Role-based access: `administrator`, `risk_manager`, `operator`, `action_owner`
 - User management page where administrators assign roles
+- Municipality catalog based on the DANE DIVIPOLA codes, with search, registration of missing municipalities by operators and validation by risk managers
+- Emergency type catalog managed by administrators and risk managers
+- Cleaned UNGRD emergency history (2025), with the response actions extracted from the free-text comments
+- SGC seismicity catalog (magnitude 2.5 and above) linked to municipalities, with a rule that links an earthquake to an emergency
 - Health check endpoint at `/health/`
 - Deployment on Render with a Supabase PostgreSQL database
 
@@ -32,6 +36,29 @@ python manage.py runserver
 ```
 
 For local development set `DEBUG=True` in `.env`. Without `DATABASE_URL`, a local SQLite database (`db.sqlite3`) is used.
+
+## Data
+
+The files in `data/` are kept exactly as downloaded:
+
+| File | Source |
+|---|---|
+| `ungrd_emergencies_v2.csv` | "Emergencias UNGRD V2" open dataset from Datos Abiertos Colombia (UNGRD) |
+| `divipola_dane.csv` | DANE DIVIPOLA municipality codes, extracted from the official DANE list |
+| `sgc_seismicity_m25.csv` | Servicio Geológico Colombiano seismicity catalog, 2020-06-01 to 2026-11-07, filtered to magnitude 2.5 and above |
+
+Load them after migrating, in this order:
+
+```bash
+python manage.py migrate
+python manage.py load_baseline
+python manage.py load_seismic
+```
+
+- `load_baseline` loads the municipalities, the emergency type catalog and the cleaned UNGRD history.
+- `load_seismic` loads the seismicity catalog and links each event to a municipality, so it needs the municipalities from `load_baseline`.
+- Both commands are idempotent: running them again does not duplicate data.
+- These commands write to whatever database `DATABASE_URL` points at, including Supabase in production. The free Render service has no shell, so the first load is run from a local machine with `DATABASE_URL` set to the Supabase pooler URL.
 
 ## Running tests
 
