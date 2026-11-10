@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}EMRIS — Emergency types{% endblock %}
+
+{% block content %}
+  <h1>Emergency types</h1>
+  {% include "_messages.html" %}
+  <p><a href="{% url 'emergencies:type_create' %}">Add an emergency type</a></p>
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Status</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for item in types %}
+        <tr>
+          <td>{{ item.name }}</td>
+          <td>{% if item.is_active %}Active{% else %}Inactive{% endif %}</td>
+          <td><a href="{% url 'emergencies:type_edit' item.pk %}">Edit</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3">No emergency types found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
