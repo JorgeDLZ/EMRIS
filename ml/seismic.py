@@ -3,7 +3,7 @@ import math
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Iterable, Iterator
+from typing import Iterable, Iterator, Mapping
 
 from ml.text import normalize_name, repair_mojibake
 
@@ -11,6 +11,9 @@ MIN_MAGNITUDE = 2.5
 LINK_WINDOW_DAYS = 2
 MIN_LINK_RADIUS_KM = 30.0
 EARTH_RADIUS_KM = 6371.0088
+SHALLOW_DEPTH_KM = 70.0
+RISK_MIN_MAGNITUDE = 4.0
+RISK_RADIUS_KM = 50.0
 COLOMBIA_TZ = timezone(timedelta(hours=-5))
 COUNTRY_SUFFIX = ", Colombia"
 UTC_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -63,6 +66,12 @@ class LinkCandidate:
 class SeismicLink:
     key: str
     distance_km: float
+
+
+@dataclass(frozen=True)
+class SeismicFeatures:
+    shallow_event_count: int = 0
+    max_shallow_magnitude: float = 0.0
 
 
 def parse_place(place: str) -> tuple[str, str] | None:
@@ -134,3 +143,28 @@ def suggest_event(
     if best is None:
         return None
     return SeismicLink(key=best[2], distance_km=best[1])
+
+
+def seismic_features(
+    centroids: Mapping[str, tuple[float, float] | None], events: Iterable
+) -> dict[str, SeismicFeatures]:
+    qualifying = [
+        event
+        for event in events
+        if event.depth_km < SHALLOW_DEPTH_KM and event.magnitude >= RISK_MIN_MAGNITUDE
+    ]
+    features = {}
+    for code, centroid in centroids.items():
+        if centroid is None:
+            features[code] = SeismicFeatures()
+            continue
+        magnitudes = [
+            event.magnitude
+            for event in qualifying
+            if haversine_km(*centroid, event.latitude, event.longitude) <= RISK_RADIUS_KM
+        ]
+        features[code] = SeismicFeatures(
+            shallow_event_count=len(magnitudes),
+            max_shallow_magnitude=max(magnitudes, default=0.0),
+        )
+    return features

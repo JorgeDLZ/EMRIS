@@ -4,14 +4,17 @@ import sys
 from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
-from ml.data import MUNICIPALITY_ALIASES, clean_ungrd
+from ml.data import MUNICIPALITY_ALIASES, clean_ungrd, municipality_centroids, read_divipola
 from ml.seismic import (
     LinkCandidate,
     SGC_MUNICIPALITY_ALIASES,
+    SeismicFeatures,
     link_radius_km,
     parse_place,
     read_catalog,
+    seismic_features,
     suggest_event,
 )
 from ml.text import normalize_name
@@ -145,3 +148,39 @@ def test_links_reproduce_known_ungrd_earthquakes():
         "SGC2025qvpuao": 1,
         "SGC2025yggwzi": 1,
     }
+
+
+def quake(magnitude, depth_km, latitude, longitude):
+    return SimpleNamespace(
+        magnitude=magnitude, depth_km=depth_km, latitude=latitude, longitude=longitude
+    )
+
+
+def test_seismic_features_rules():
+    events = [
+        quake(4.0, 69.0, 4.69, -74.1),
+        quake(4.5, 70.0, 4.6, -74.1),
+        quake(3.9, 10.0, 4.6, -74.1),
+        quake(5.0, 10.0, 5.14, -74.1),
+    ]
+    assert seismic_features({"x": BOGOTA}, events) == {"x": SeismicFeatures(1, 4.0)}
+
+
+def test_deep_strong_events_do_not_count():
+    events = [quake(6.0, 140.0, *BOGOTA) for _ in range(50)]
+    assert seismic_features({"x": BOGOTA}, events) == {"x": SeismicFeatures(0, 0.0)}
+
+
+def test_missing_centroid_gets_zeros():
+    assert seismic_features({"x": None}, [quake(5.0, 5.0, *BOGOTA)]) == {
+        "x": SeismicFeatures(0, 0.0)
+    }
+
+
+def test_real_seismic_features():
+    centroids = municipality_centroids(read_divipola(DATA / "divipola_dane.csv"))
+    features = seismic_features(centroids, read_catalog(DATA / "sgc_seismicity_m25.csv"))
+    assert len(features) == 1122
+    assert sum(f.shallow_event_count > 0 for f in features.values()) == 525
+    assert features["25438"] == SeismicFeatures(19, 6.4)
+    assert features["68418"] == SeismicFeatures(0, 0.0)
