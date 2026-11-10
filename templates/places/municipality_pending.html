@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}EMRIS — Pending municipalities{% endblock %}
+
+{% block content %}
+  <h1>Pending municipalities</h1>
+  {% include "_messages.html" %}
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Department</th><th>Registered by</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for item in municipalities %}
+        <tr>
+          <td>{{ item.name }}</td>
+          <td>{{ item.department.name }}</td>
+          <td>{{ item.created_by.username|default:"Unknown" }}</td>
+          <td>
+            <form method="post" action="{% url 'places:municipality_approve' item.pk %}">
+              {% csrf_token %}
+              <button type="submit">Approve</button>
+            </form>
+            <form method="post" action="{% url 'places:municipality_reject' item.pk %}">
+              {% csrf_token %}
+              <button type="submit">Reject</button>
+            </form>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4">No municipalities are waiting for validation.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

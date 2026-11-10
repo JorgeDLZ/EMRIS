@@ -1,7 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-from apps.accounts.roles import ADMINISTRATOR, ROLE_LABELS, get_role
+from apps.accounts.roles import ADMINISTRATOR, OPERATOR, RISK_MANAGER, ROLE_LABELS, get_role
 
 
 class User(AbstractUser):
@@ -14,3 +14,11 @@ class User(AbstractUser):
     @property
     def is_administrator(self) -> bool:
         return self.is_superuser or get_role(self) == ADMINISTRATOR
+
+    @property
+    def can_manage_catalogs(self) -> bool:
+        return self.is_superuser or get_role(self) in (ADMINISTRATOR, RISK_MANAGER)
+
+    @property
+    def can_register_municipalities(self) -> bool:
+        return self.is_superuser or get_role(self) in (ADMINISTRATOR, RISK_MANAGER, OPERATOR)
