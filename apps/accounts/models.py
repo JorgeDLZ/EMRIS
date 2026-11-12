@@ -22,3 +22,11 @@ class User(AbstractUser):
     @property
     def can_register_municipalities(self) -> bool:
         return self.is_superuser or get_role(self) in (ADMINISTRATOR, RISK_MANAGER, OPERATOR)
+
+    @property
+    def can_edit_emergencies(self) -> bool:
+        return self.is_superuser or get_role(self) in (ADMINISTRATOR, RISK_MANAGER, OPERATOR)
+
+    @property
+    def can_manage_resources(self) -> bool:
+        return self.is_superuser or get_role(self) in (ADMINISTRATOR, RISK_MANAGER)
