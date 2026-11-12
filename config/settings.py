@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.places",
     "apps.emergencies",
+    "apps.plans",
     "apps.history",
     "apps.seismic",
 ]
