@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}EMRIS — Emergency {{ emergency.pk }}{% endblock %}
+
+{% block content %}
+  <h1>{{ emergency.emergency_type.name }} in {{ emergency.municipality.name }}</h1>
+  {% include "_messages.html" %}
+
+  <section class="card">
+    <h2>Summary</h2>
+    <p>Status: {{ emergency.get_status_display }}</p>
+    <p>Municipality: {{ emergency.municipality.name }} ({{ emergency.municipality.department.name }})</p>
+    <p>Occurred: {{ emergency.occurred_at|date:"Y-m-d H:i" }}</p>
+    {% if emergency.site %}<p>Site: {{ emergency.site }}</p>{% endif %}
+    {% if emergency.description %}<p>{{ emergency.description }}</p>{% endif %}
+    {% if emergency.is_earthquake %}
+      {% if emergency.magnitude is not None %}<p>Magnitude: {{ emergency.magnitude }}</p>{% endif %}
+      {% if emergency.depth_km is not None %}<p>Depth: {{ emergency.depth_km }} km</p>{% endif %}
+    {% endif %}
+    {% if can_edit %}<p><a href="{% url 'emergencies:emergency_edit' emergency.pk %}">Edit emergency</a></p>{% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Impact</h2>
+    {% if impact %}
+      <ul>
+        <li>Deceased: {{ impact.deceased }}</li>
+        <li>Injured: {{ impact.injured }}</li>
+        <li>Missing: {{ impact.missing }}</li>
+        <li>People affected: {{ impact.people_affected }}</li>
+        <li>Families affected: {{ impact.families_affected }}</li>
+        <li>Homes destroyed: {{ impact.homes_destroyed }}</li>
+        <li>Homes damaged: {{ impact.homes_damaged }}</li>
+        <li>Roads damaged: {{ impact.roads_damaged }}</li>
+        <li>Bridges damaged: {{ impact.bridges_damaged }}</li>
+        <li>Hectares: {{ impact.hectares }}</li>
+      </ul>
+    {% else %}
+      <p>No impact recorded yet.</p>
+    {% endif %}
+    {% if can_edit %}<p><a href="{% url 'emergencies:impact_edit' emergency.pk %}">Record impact</a></p>{% endif %}
+  </section>
+
+  <section class="card">
+    <h2>Action plan</h2>
+    {% if plan %}
+      {% with total=plan.actions.count %}
+        <p>{{ plan.get_status_display }} plan with {{ total }} action{{ total|pluralize }}.</p>
+      {% endwith %}
+    {% else %}
+      <p>No action plan yet.</p>
+    {% endif %}
+  </section>
+
+  {% if next_statuses %}
+    <section class="card">
+      <h2>Change status</h2>
+      <form method="post" action="{% url 'emergencies:status_change' emergency.pk %}">
+        {% csrf_token %}
+        <p>
+          <label for="status-note">Note</label>
+          <input type="text" name="note" id="status-note">
+        </p>
+        {% for value, label in next_statuses %}
+          <button type="submit" name="status" value="{{ value }}">Move to {{ label }}</button>
+        {% endfor %}
+      </form>
+    </section>
+  {% endif %}
+
+  <section class="card">
+    <h2>Follow-up</h2>
+    <ul>
+      {% for entry in log %}
+        <li>
+          {{ entry.created_at|date:"Y-m-d H:i" }} · {{ entry.author.username|default:"Unknown" }} ·
+          {% if entry.is_status_change %}Status changed to {{ entry.status_label }}{% else %}{{ entry.status_label }}{% endif %}
+          {% if entry.note %}: {{ entry.note }}{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+    {% if can_edit %}
+      <form method="post" action="{% url 'emergencies:note_add' emergency.pk %}">
+        {% csrf_token %}
+        <p>
+          <label for="note">Add a note</label>
+          <textarea name="note" id="note" rows="3"></textarea>
+        </p>
+        <button type="submit">Add note</button>
+      </form>
+    {% endif %}
+  </section>
+
+  <p><a href="{% url 'emergencies:emergency_list' %}">Back to emergencies</a></p>
+{% endblock %}

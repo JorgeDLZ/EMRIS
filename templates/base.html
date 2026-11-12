@@ -12,6 +12,7 @@
     <a class="brand" href="{% url 'home' %}">EMRIS</a>
     <nav>
       {% if user.is_authenticated %}
+        {% if user.role_label or user.is_superuser %}<a href="{% url 'emergencies:emergency_list' %}">Emergencies</a>{% endif %}
         {% if user.can_register_municipalities %}<a href="{% url 'places:municipality_list' %}">Municipalities</a>{% endif %}
         {% if user.can_manage_catalogs %}<a href="{% url 'places:municipality_pending' %}">Pending municipalities</a>{% endif %}
         {% if user.can_manage_catalogs %}<a href="{% url 'emergencies:type_list' %}">Emergency types</a>{% endif %}

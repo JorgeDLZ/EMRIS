@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}EMRIS — Record impact{% endblock %}
+
+{% block content %}
+  <h1>Record the impact</h1>
+  {% include "_messages.html" %}
+  <p>{{ emergency.emergency_type.name }} in {{ emergency.municipality.name }} ({{ emergency.municipality.department.name }}), {{ emergency.occurred_at|date:"Y-m-d H:i" }}</p>
+  <form method="post" class="card">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save</button>
+  </form>
+  <p><a href="{% url 'emergencies:emergency_detail' emergency.pk %}">Back to the emergency</a></p>
+{% endblock %}
