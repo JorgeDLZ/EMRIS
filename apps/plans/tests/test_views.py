@@ -11,8 +11,10 @@ from apps.emergencies.models import CLOSED, REPORTED, Emergency, EmergencyType
 from apps.places.models import Department, Municipality
 from apps.plans.models import (
     APPROVED,
+    DRAFT,
     IN_PROGRESS,
     KIT,
+    PENDING,
     Action,
     ActionPlan,
     Resource,
@@ -292,3 +294,147 @@ def test_emergency_closed_after_policy_check_is_handled(client, make_emergency, 
     )
     assert response.status_code == 200
     assert message in response.content.decode()
+
+
+def test_repeated_approve_shows_message(client, make_emergency):
+    emergency = make_emergency()
+    plan = ActionPlan.objects.create(emergency=emergency)
+    Action.objects.create(plan=plan, description="Evacuate")
+    login(client, make_user("manager", RISK_MANAGER))
+    url = reverse("plans:plan_approve", args=[emergency.pk])
+
+    assert client.post(url).status_code == 302
+    response = client.post(url, follow=True)
+    assert response.redirect_chain[-1][0] == reverse("plans:plan_detail", args=[emergency.pk])
+    assert "This plan is already approved." in response.content.decode()
+    plan.refresh_from_db()
+    assert plan.status == APPROVED
+
+
+def test_advance_forms_post_the_current_status(client, make_emergency):
+    emergency = make_emergency()
+    plan = ActionPlan.objects.create(emergency=emergency)
+    Action.objects.create(plan=plan, description="Evacuate")
+    login(client, make_user("operator", OPERATOR))
+    hidden = '<input type="hidden" name="expected_status" value="pending">'
+    for url in (
+        reverse("plans:plan_detail", args=[emergency.pk]),
+        reverse("emergencies:emergency_detail", args=[emergency.pk]),
+    ):
+        assert hidden in client.get(url).content.decode()
+
+
+def test_double_advance_moves_action_once(client, make_emergency):
+    emergency = make_emergency()
+    plan = ActionPlan.objects.create(emergency=emergency)
+    action = Action.objects.create(plan=plan, description="Evacuate")
+    login(client, make_user("operator", OPERATOR))
+    url = reverse("plans:action_advance", args=[action.pk])
+
+    assert client.post(url, {"expected_status": PENDING}).status_code == 302
+    response = client.post(url, {"expected_status": PENDING}, follow=True)
+    assert response.redirect_chain[-1][0] == reverse("plans:plan_detail", args=[emergency.pk])
+    assert "This action was already updated." in response.content.decode()
+    action.refresh_from_db()
+    assert action.status == IN_PROGRESS
+
+
+def test_stock_below_assigned_is_saved_with_warning(client, make_emergency):
+    kits = Resource.objects.create(name="Food kits", kind=KIT, quantity_available=10)
+    plan = ActionPlan.objects.create(emergency=make_emergency())
+    ResourceAssignment.objects.create(plan=plan, resource=kits, quantity=6)
+    closed_plan = ActionPlan.objects.create(emergency=make_emergency(status=CLOSED))
+    ResourceAssignment.objects.create(plan=closed_plan, resource=kits, quantity=50)
+    login(client, make_user("admin", ADMINISTRATOR))
+    url = reverse("plans:resource_edit", args=[kits.pk])
+
+    response = client.post(
+        url, {"name": "Food kits", "kind": KIT, "quantity_available": 4}, follow=True
+    )
+    assert response.redirect_chain[-1][0] == reverse("plans:resource_list")
+    kits.refresh_from_db()
+    assert kits.quantity_available == 4
+    html = response.content.decode()
+    assert "6 are assigned to open emergencies; the stock is now below that." in html
+    assert "Over-assigned by 2" in html
+
+    response = client.post(
+        url, {"name": "Food kits", "kind": KIT, "quantity_available": 6}, follow=True
+    )
+    html = response.content.decode()
+    assert "the stock is now below that" not in html
+    assert "Over-assigned" not in html
+
+
+def test_action_edit_on_closed_emergency_is_refused(client, make_emergency):
+    emergency = make_emergency(status=CLOSED)
+    plan = ActionPlan.objects.create(emergency=emergency)
+    action = Action.objects.create(plan=plan, description="x")
+    login(client, make_user("admin", ADMINISTRATOR))
+    url = reverse("plans:action_edit", args=[action.pk])
+    assert client.get(url).status_code == 403
+    assert client.post(url, {"description": "y"}).status_code == 403
+    action.refresh_from_db()
+    assert action.description == "x"
+
+
+def test_action_owner_cannot_change_the_plan(client, make_emergency):
+    emergency = make_emergency()
+    plan = ActionPlan.objects.create(emergency=emergency)
+    owner = make_user("owner", ACTION_OWNER)
+    action = Action.objects.create(plan=plan, description="Own", owner=owner)
+    resource = Resource.objects.create(name="Food kits", kind=KIT, quantity_available=10)
+    assignment = ResourceAssignment.objects.create(plan=plan, resource=resource, quantity=1)
+
+    login(client, owner)
+    pk = [emergency.pk]
+    assert client.post(reverse("plans:plan_start", args=pk)).status_code == 403
+    assert client.post(reverse("plans:plan_approve", args=pk)).status_code == 403
+    assert client.get(reverse("plans:action_create", args=pk)).status_code == 403
+    assert (
+        client.post(reverse("plans:action_create", args=pk), {"description": "x"}).status_code
+        == 403
+    )
+    assert client.get(reverse("plans:action_edit", args=[action.pk])).status_code == 403
+    assert (
+        client.post(
+            reverse("plans:action_edit", args=[action.pk]), {"description": "y"}
+        ).status_code
+        == 403
+    )
+    assert (
+        client.post(
+            reverse("plans:assignment_create", args=pk), {"resource": resource.pk, "quantity": 2}
+        ).status_code
+        == 403
+    )
+    assert client.post(reverse("plans:assignment_remove", args=[assignment.pk])).status_code == 403
+    plan.refresh_from_db()
+    action.refresh_from_db()
+    assignment.refresh_from_db()
+    assert (plan.status, plan.actions.count(), action.description) == (DRAFT, 1, "Own")
+    assert assignment.quantity == 1
+
+
+def test_operator_cannot_change_an_approved_plan(client, make_emergency):
+    emergency = make_emergency()
+    plan = ActionPlan.objects.create(emergency=emergency, status=APPROVED)
+    action = Action.objects.create(plan=plan, description="x")
+    resource = Resource.objects.create(name="Food kits", kind=KIT, quantity_available=10)
+    assignment = ResourceAssignment.objects.create(plan=plan, resource=resource, quantity=1)
+
+    login(client, make_user("operator", OPERATOR))
+    assert (
+        client.post(
+            reverse("plans:assignment_create", args=[emergency.pk]),
+            {"resource": resource.pk, "quantity": 2},
+        ).status_code
+        == 403
+    )
+    assert client.post(reverse("plans:assignment_remove", args=[assignment.pk])).status_code == 403
+    edit_url = reverse("plans:action_edit", args=[action.pk])
+    assert client.get(edit_url).status_code == 403
+    assert client.post(edit_url, {"description": "y"}).status_code == 403
+    action.refresh_from_db()
+    assignment.refresh_from_db()
+    assert (action.description, assignment.quantity) == ("x", 1)

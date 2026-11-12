@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import role_required
-from apps.accounts.roles import ADMINISTRATOR, ALL_ROLES, RISK_MANAGER
+from apps.accounts.roles import ADMINISTRATOR, ALL_ROLES, EDIT_ROLES, RISK_MANAGER
 from apps.plans.models import DONE
 from apps.seismic.services import clear_link, confirm_link, suggest_link
 from ml.text import normalize_name
@@ -14,10 +14,10 @@ from ml.text import normalize_name
 from .forms import EmergencyForm, EmergencyTypeForm, ImpactForm
 from .models import STATUS_CHOICES, Emergency, EmergencyType, Impact
 from .policies import (
-    EDIT_ROLES,
     allowed_statuses,
     can_edit_emergency,
     can_edit_plan,
+    can_set_status,
     can_start_plan,
     can_update_action,
     visible_emergencies,
@@ -135,8 +135,9 @@ def emergency_detail(request, pk):
             for action in plan.actions.select_related("owner")
         ]
         assignments = plan.assignments.select_related("resource")
+    can_edit = can_edit_emergency(user, emergency)
     suggestion = None
-    if emergency.is_earthquake and emergency.seismic_event is None:
+    if can_edit and emergency.is_earthquake and emergency.seismic_event is None:
         suggestion = suggest_link(emergency)
     return render(
         request,
@@ -151,7 +152,7 @@ def emergency_detail(request, pk):
             "assignments": assignments,
             "can_start_plan": can_start_plan(user, emergency),
             "can_edit_plan": plan is not None and can_edit_plan(user, plan),
-            "can_edit": can_edit_emergency(user, emergency),
+            "can_edit": can_edit,
             "next_statuses": [(status, LABELS[status]) for status in allowed_statuses(user, emergency)],
         },
     )
@@ -211,7 +212,7 @@ def impact_edit(request, pk):
 def status_change(request, pk):
     emergency = get_object_or_404(visible_emergencies(request.user), pk=pk)
     status = request.POST.get("status", "")
-    if status not in allowed_statuses(request.user, emergency):
+    if not can_set_status(request.user, emergency, status):
         raise PermissionDenied
     try:
         change_status(emergency, status, request.user, request.POST.get("note", "").strip())

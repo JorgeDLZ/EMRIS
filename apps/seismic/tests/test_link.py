@@ -274,3 +274,53 @@ def test_edit_site_and_description_keep_link(client, linked):
     edit(client, linked, site="Downtown", description="Felt widely")
     assert linked.seismic_event == event
     assert linked.seismic_link_distance_km == 3.0
+
+
+def test_closed_emergency_shows_no_suggestion(client, db, bogota, earthquake, monkeypatch):
+    emergency = make_emergency(earthquake, bogota, status=CLOSED)
+    make_event("ev1", 5.3)
+
+    def refuse(_emergency):
+        raise AssertionError("suggest_link must not run for a closed emergency")
+
+    monkeypatch.setattr("apps.emergencies.views.suggest_link", refuse)
+    client.force_login(make_user("olga", OPERATOR))
+    content = client.get(detail_url(emergency)).content.decode()
+    assert "Suggested:" not in content
+    assert NO_MATCH not in content
+
+
+def test_read_only_viewer_sees_link_without_suggestion(client, db, bogota, earthquake):
+    owner = make_user("omar", ACTION_OWNER)
+    event = make_event("ev1", 5.3)
+    unlinked = make_emergency(earthquake, bogota)
+    linked = make_emergency(earthquake, bogota, seismic_event=event, seismic_link_distance_km=3.0)
+    no_match = Emergency.objects.create(
+        emergency_type=earthquake,
+        municipality=bogota,
+        occurred_at=timezone.now() - timedelta(days=30),
+    )
+    for emergency in (unlinked, linked, no_match):
+        plan = ActionPlan.objects.create(emergency=emergency)
+        Action.objects.create(plan=plan, description="Deliver kits", owner=owner)
+    client.force_login(owner)
+
+    content = client.get(detail_url(unlinked)).content.decode()
+    assert "Suggested:" not in content
+    assert reverse("emergencies:seismic_confirm", args=[unlinked.pk]) not in content
+    assert NO_MATCH not in client.get(detail_url(no_match)).content.decode()
+
+    content = client.get(detail_url(linked)).content.decode()
+    assert "SGC id ev1" in content
+    assert reverse("emergencies:seismic_clear", args=[linked.pk]) not in content
+
+
+def test_closed_linked_emergency_shows_event(client, db, bogota, earthquake):
+    event = make_event("ev1", 5.3)
+    emergency = make_emergency(
+        earthquake, bogota, status=CLOSED, seismic_event=event, seismic_link_distance_km=3.0
+    )
+    client.force_login(make_user("olga", OPERATOR))
+    content = client.get(detail_url(emergency)).content.decode()
+    assert "SGC id ev1" in content
+    assert reverse("emergencies:seismic_clear", args=[emergency.pk]) not in content

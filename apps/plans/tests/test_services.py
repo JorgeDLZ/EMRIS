@@ -25,6 +25,7 @@ from apps.plans.services import (
     approve_plan,
     assign_resource,
     assignable_owners,
+    assigned_quantity,
     remaining_quantity,
     remove_assignment,
     start_plan,
@@ -99,6 +100,16 @@ def test_action_moves_only_forward(emergency, actor):
     with pytest.raises(PlanError, match="This action is already done."):
         advance_action(action)
 
+
+def test_advance_refuses_a_stale_expected_status(emergency, actor):
+    plan = start_plan(emergency, actor)
+    action = add_action(plan, description="Open a shelter")
+    stale = Action.objects.get(pk=action.pk)
+    advance_action(action, expected_status=PENDING)
+    with pytest.raises(PlanError, match="This action was already updated."):
+        advance_action(stale, expected_status=PENDING)
+    action.refresh_from_db()
+    assert action.status == IN_PROGRESS
 
 def test_update_action_changes_fields(emergency, actor):
     plan = start_plan(emergency, actor)
@@ -200,3 +211,19 @@ def test_remaining_never_negative_when_stock_is_lowered(make_emergency, actor, f
     assert remaining_quantity(food_kits) == 0
     with pytest.raises(PlanError, match="Only 0 Food kits remain."):
         assign_resource(plan_b, food_kits, 1)
+
+
+def test_assigned_quantity_counts_open_emergencies_only(make_emergency, actor, food_kits):
+    plan_a = start_plan(make_emergency(), actor)
+    plan_b = start_plan(make_emergency(), actor)
+    closed = make_emergency()
+    assign_resource(plan_a, food_kits, 6)
+    assign_resource(plan_b, food_kits, 3)
+    assign_resource(start_plan(closed, actor), food_kits, 1)
+    close(closed)
+    assert assigned_quantity(food_kits) == 9
+    assert assigned_quantity(food_kits, exclude_plan=plan_a) == 3
+    food_kits.quantity_available = 4
+    food_kits.save()
+    assert remaining_quantity(food_kits) == 0
+    assert remaining_quantity(food_kits, exclude_plan=plan_a) == 1

@@ -1,13 +1,10 @@
 from django.db.models import QuerySet
 
 from apps.accounts.permissions import has_role
-from apps.accounts.roles import ACTION_OWNER, ADMINISTRATOR, OPERATOR, RISK_MANAGER
+from apps.accounts.roles import ACTION_OWNER, EDIT_ROLES, MANAGE_ROLES, OPERATOR
 
 from .models import CLOSED, Emergency
 from .workflow import TRANSITIONS
-
-MANAGE_ROLES = (ADMINISTRATOR, RISK_MANAGER)
-EDIT_ROLES = (ADMINISTRATOR, RISK_MANAGER, OPERATOR)
 
 
 def visible_emergencies(user) -> QuerySet[Emergency]:
@@ -33,6 +30,12 @@ def allowed_statuses(user, emergency) -> list[str]:
     ]
 
 
+def can_set_status(user, emergency, status) -> bool:
+    if status not in TRANSITIONS or not has_role(user, *EDIT_ROLES):
+        return False
+    return status != CLOSED or emergency.is_closed or has_role(user, *MANAGE_ROLES)
+
+
 def can_start_plan(user, emergency) -> bool:
     return can_edit_emergency(user, emergency)
 
@@ -46,11 +49,7 @@ def can_edit_plan(user, plan) -> bool:
 
 
 def can_approve_plan(user, plan) -> bool:
-    return (
-        not plan.emergency.is_closed
-        and not plan.is_approved
-        and has_role(user, *MANAGE_ROLES)
-    )
+    return not plan.emergency.is_closed and has_role(user, *MANAGE_ROLES)
 
 
 def can_update_action(user, action) -> bool:

@@ -90,7 +90,7 @@ def test_close_sets_closed_at_and_locks(emergency, actor):
         save_impact(emergency, actor, {"deceased": 3})
 
 
-def test_reopening_clears_closed_at(emergency, actor):
+def test_non_closing_transition_leaves_closed_at_empty(emergency, actor):
     emergency.closed_at = timezone.now()
     change_status(emergency, IN_RESPONSE, actor)
     emergency.refresh_from_db()
@@ -131,7 +131,6 @@ def test_is_earthquake(emergency):
     assert not emergency.is_earthquake
     quake = EmergencyType.objects.create(name="Earthquake", seed_key="Earthquake")
     assert Emergency(emergency_type=quake).is_earthquake
-
 
 
 def stale_pair(emergency, actor):

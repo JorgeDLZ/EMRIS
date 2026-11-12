@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.emergencies.models import Emergency
-from apps.emergencies.workflow import _lock_open
+from apps.emergencies.workflow import lock_open
 from apps.places.models import Municipality
 from ml.seismic import (
     SGC_MUNICIPALITY_ALIASES,
@@ -123,7 +123,7 @@ def _store_link(
 
 @transaction.atomic
 def confirm_link(emergency: Emergency) -> SeismicSuggestion | None:
-    locked = _lock_open(emergency)
+    locked = lock_open(emergency)
     suggestion = suggest_link(locked)
     if suggestion is not None:
         _store_link(emergency, locked, suggestion.event, suggestion.distance_km)
@@ -132,4 +132,4 @@ def confirm_link(emergency: Emergency) -> SeismicSuggestion | None:
 
 @transaction.atomic
 def clear_link(emergency: Emergency) -> None:
-    _store_link(emergency, _lock_open(emergency), None, None)
+    _store_link(emergency, lock_open(emergency), None, None)

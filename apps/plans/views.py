@@ -5,10 +5,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import role_required
-from apps.accounts.roles import ALL_ROLES
+from apps.accounts.roles import ALL_ROLES, EDIT_ROLES, MANAGE_ROLES
 from apps.emergencies.policies import (
-    EDIT_ROLES,
-    MANAGE_ROLES,
     can_approve_plan,
     can_edit_plan,
     can_start_plan,
@@ -24,7 +22,7 @@ from .services import (
     advance_action,
     approve_plan,
     assign_resource,
-    remaining_quantity,
+    assigned_quantity,
     remove_assignment,
     start_plan,
     update_action,
@@ -74,7 +72,7 @@ def _detail_context(user, emergency, plan, assignment_form=None):
                 ],
                 "assignments": plan.assignments.select_related("resource"),
                 "can_edit": can_edit_plan(user, plan),
-                "can_approve": can_approve_plan(user, plan),
+                "can_approve": can_approve_plan(user, plan) and not plan.is_approved,
                 "assignment_form": assignment_form or AssignmentForm(),
             }
         )
@@ -166,7 +164,7 @@ def action_advance(request, pk):
     if not can_update_action(request.user, action):
         raise PermissionDenied
     try:
-        advance_action(action)
+        advance_action(action, request.POST.get("expected_status") or None)
     except WorkflowError as error:
         messages.error(request, str(error))
     else:
@@ -214,7 +212,11 @@ def assignment_remove(request, pk):
 
 @role_required(*MANAGE_ROLES)
 def resource_list(request):
-    rows = [(resource, remaining_quantity(resource)) for resource in Resource.objects.all()]
+    rows = []
+    for resource in Resource.objects.all():
+        assigned = assigned_quantity(resource)
+        stock = resource.quantity_available
+        rows.append((resource, max(stock - assigned, 0), max(assigned - stock, 0)))
     return render(request, "plans/resource_list.html", {"rows": rows})
 
 
@@ -235,5 +237,11 @@ def resource_edit(request, pk):
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, f"{resource.name} was updated.")
+        assigned = assigned_quantity(resource)
+        if assigned > resource.quantity_available:
+            messages.warning(
+                request,
+                f"{assigned} are assigned to open emergencies; the stock is now below that.",
+            )
         return redirect("plans:resource_list")
     return render(request, "plans/resource_form.html", {"form": form, "resource": resource})

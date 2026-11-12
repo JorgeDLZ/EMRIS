@@ -46,6 +46,7 @@
                 {% if can_update %}
                   <form method="post" action="{% url 'plans:action_advance' action.pk %}">
                     {% csrf_token %}
+                    <input type="hidden" name="expected_status" value="{{ action.status }}">
                     <button type="submit">Advance</button>
                   </form>
                 {% endif %}

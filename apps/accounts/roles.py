@@ -4,6 +4,8 @@ OPERATOR = "operator"
 ACTION_OWNER = "action_owner"
 
 ALL_ROLES: tuple[str, ...] = (ADMINISTRATOR, RISK_MANAGER, OPERATOR, ACTION_OWNER)
+MANAGE_ROLES: tuple[str, ...] = (ADMINISTRATOR, RISK_MANAGER)
+EDIT_ROLES: tuple[str, ...] = (ADMINISTRATOR, RISK_MANAGER, OPERATOR)
 
 ROLE_LABELS: dict[str, str] = {
     ADMINISTRATOR: "Administrator",

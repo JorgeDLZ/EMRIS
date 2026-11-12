@@ -3,3 +3,4 @@ DJANGO_SETTINGS_MODULE = "config.settings"
 pythonpath = ["."]
 python_files = ["test_*.py"]
 addopts = "-p conftest"
+filterwarnings = ["ignore:No directory at:UserWarning"]

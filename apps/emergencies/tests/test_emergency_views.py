@@ -386,9 +386,10 @@ def test_closed_emergency_refuses_posts(client, make_emergency, medellin, flood)
     assert client.get(reverse("emergencies:impact_edit", args=pk)).status_code == 403
     assert client.post(reverse("emergencies:impact_edit", args=pk), {}).status_code == 403
     assert client.post(reverse("emergencies:note_add", args=pk), {"note": "x"}).status_code == 403
-    assert client.post(
-        reverse("emergencies:status_change", args=pk), {"status": IN_RESPONSE}
-    ).status_code == 403
+    response = client.post(reverse("emergencies:status_change", args=pk), {"status": IN_RESPONSE})
+    assert response.status_code == 302
+    emergency.refresh_from_db()
+    assert emergency.status == CLOSED
     assert client.get(reverse("emergencies:emergency_detail", args=pk)).status_code == 200
 
 
@@ -480,3 +481,75 @@ def test_list_is_newest_first(client, make_emergency):
     client.force_login(make_user("rita", RISK_MANAGER))
     page = client.get(reverse("emergencies:emergency_list")).context["page"]
     assert list(page.object_list) == [new, middle, old]
+
+
+def test_repeated_status_change_shows_message(client, make_emergency):
+    emergency = make_emergency()
+    client.force_login(make_user("olga", OPERATOR))
+    url = reverse("emergencies:status_change", args=[emergency.pk])
+    detail = reverse("emergencies:emergency_detail", args=[emergency.pk])
+
+    assert client.post(url, {"status": IN_RESPONSE}).status_code == 302
+    response = client.post(url, {"status": IN_RESPONSE}, follow=True)
+    assert response.redirect_chain[-1][0] == detail
+    assert "Cannot move from In response to In response." in response.content.decode()
+    emergency.refresh_from_db()
+    assert emergency.status == IN_RESPONSE
+    assert StatusLog.objects.filter(emergency=emergency, status=IN_RESPONSE).count() == 1
+
+
+def test_stale_status_change_shows_message(client, make_emergency):
+    emergency = make_emergency()
+    client.force_login(make_user("olga", OPERATOR))
+    url = reverse("emergencies:status_change", args=[emergency.pk])
+    response = client.post(url, {"status": CONTROLLED}, follow=True)
+    assert "Cannot move from Reported to Controlled." in response.content.decode()
+    emergency.refresh_from_db()
+    assert emergency.status == REPORTED
+
+
+def test_status_change_role_refusals(client, make_emergency):
+    emergency = make_emergency()
+    url = reverse("emergencies:status_change", args=[emergency.pk])
+    client.force_login(make_user("olga", OPERATOR))
+    assert client.post(url, {"status": "flying"}).status_code == 403
+    assert client.post(url, {"status": CLOSED}).status_code == 403
+    emergency.refresh_from_db()
+    assert emergency.status == REPORTED
+
+
+def test_repeated_close_shows_message(client, make_emergency):
+    emergency = make_emergency(status=CONTROLLED)
+    Impact.objects.create(emergency=emergency)
+    client.force_login(make_user("rita", RISK_MANAGER))
+    url = reverse("emergencies:status_change", args=[emergency.pk])
+    detail = reverse("emergencies:emergency_detail", args=[emergency.pk])
+
+    assert client.post(url, {"status": CLOSED}).status_code == 302
+    emergency.refresh_from_db()
+    assert emergency.status == CLOSED
+    response = client.post(url, {"status": CLOSED}, follow=True)
+    assert response.redirect_chain == [(detail, 302)]
+    assert "This emergency is closed." in response.content.decode()
+    assert StatusLog.objects.filter(emergency=emergency, status=CLOSED).count() == 1
+
+
+def test_status_post_on_closed_emergency(client, make_emergency):
+    emergency = make_emergency(status=CLOSED)
+    url = reverse("emergencies:status_change", args=[emergency.pk])
+    detail = reverse("emergencies:emergency_detail", args=[emergency.pk])
+
+    client.force_login(make_user("olga", OPERATOR))
+    for status in (CLOSED, IN_RESPONSE):
+        response = client.post(url, {"status": status}, follow=True)
+        assert response.redirect_chain == [(detail, 302)]
+        assert "This emergency is closed." in response.content.decode()
+    assert client.post(url, {"status": "flying"}).status_code == 403
+
+    owner = make_user("omar", ACTION_OWNER)
+    give_action(emergency, owner)
+    client.force_login(owner)
+    assert client.post(url, {"status": CLOSED}).status_code == 403
+    emergency.refresh_from_db()
+    assert emergency.status == CLOSED
+    assert not StatusLog.objects.filter(emergency=emergency).exists()

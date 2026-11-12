@@ -10,11 +10,11 @@ EMRIS (Emergency Management & Resource Information System) is a web application 
 - Municipality catalog based on the DANE DIVIPOLA codes, with search, registration of missing municipalities by operators and validation by risk managers
 - Emergency type catalog managed by administrators and risk managers
 - Cleaned UNGRD emergency history (2025), with the response actions extracted from the free-text comments
-- SGC seismicity catalog (magnitude 2.5 and above) linked to municipalities, with a rule that links an earthquake to an emergency
+- SGC seismicity catalog (magnitude 2.5 and above) linked to municipalities
 - Emergencies: report, edit, list with filters and detail page
 - Impact recorded with 10 variables per emergency
 - Follow-up with the status flow `Reported → In response → Controlled → Closed`: a controlled emergency can return to in response, closing requires a recorded impact, and closed emergencies are read-only
-- Action plans (one per emergency): operators draft them and risk managers approve them; each plan has actions with owners, due dates and statuses
+- Action plans (one per emergency): operators draft them and administrators and risk managers approve them; each plan has actions with owners, due dates and statuses
 - Resource catalog with stock; the resources assigned to an emergency are freed when it closes
 - Earthquake link to the official SGC event: suggested on the emergency page and confirmed by the user; magnitude and depth are entered manually when there is no match
 - Health check endpoint at `/health/`

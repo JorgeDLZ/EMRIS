@@ -11,12 +11,12 @@
       <tr><th>Name</th><th>Kind</th><th>In stock</th><th>Remaining</th><th></th></tr>
     </thead>
     <tbody>
-      {% for resource, remaining in rows %}
+      {% for resource, remaining, over_assigned in rows %}
         <tr>
           <td>{{ resource.name }}</td>
           <td>{{ resource.get_kind_display }}</td>
           <td>{{ resource.quantity_available }}</td>
-          <td>{{ remaining }}</td>
+          <td>{{ remaining }}{% if over_assigned %} · Over-assigned by {{ over_assigned }}{% endif %}</td>
           <td><a href="{% url 'plans:resource_edit' resource.pk %}">Edit</a></td>
         </tr>
       {% empty %}

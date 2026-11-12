@@ -121,7 +121,7 @@ def test_plan_rights(make_emergency, role, plan_status):
     plan = make_plan(make_emergency(IN_RESPONSE), plan_status)
     can_edit = role in MANAGERS or (role == OPERATOR and plan_status == DRAFT)
     assert policies.can_edit_plan(user, plan) is can_edit
-    assert policies.can_approve_plan(user, plan) is (role in MANAGERS and plan_status == DRAFT)
+    assert policies.can_approve_plan(user, plan) is (role in MANAGERS)
 
 
 @pytest.mark.parametrize("role", ROLES)
@@ -156,3 +156,15 @@ def test_user_navigation_properties(db):
         user = make_user(role)
         assert user.can_edit_emergencies is (role in EDITORS)
         assert user.can_manage_resources is (role in MANAGERS)
+
+
+@pytest.mark.parametrize("role", ROLES)
+@pytest.mark.parametrize("current", [REPORTED, IN_RESPONSE, CONTROLLED, CLOSED])
+def test_can_set_status_is_role_only(make_emergency, role, current):
+    user = make_user(role)
+    emergency = make_emergency(current)
+    for target in (REPORTED, IN_RESPONSE, CONTROLLED):
+        assert policies.can_set_status(user, emergency, target) is (role in EDITORS)
+    closers = EDITORS if current == CLOSED else MANAGERS
+    assert policies.can_set_status(user, emergency, CLOSED) is (role in closers)
+    assert policies.can_set_status(user, emergency, "flying") is False

@@ -31,7 +31,7 @@ def ensure_open(emergency: Emergency) -> None:
         raise WorkflowError("This emergency is closed.")
 
 
-def _lock_open(emergency: Emergency) -> Emergency:
+def lock_open(emergency: Emergency) -> Emergency:
     locked = Emergency.objects.select_for_update().get(pk=emergency.pk)
     ensure_open(locked)
     return locked
@@ -54,7 +54,7 @@ def create_emergency(actor, **fields) -> Emergency:
 
 @transaction.atomic
 def change_status(emergency: Emergency, new_status: str, actor, note: str = "") -> None:
-    locked = _lock_open(emergency)
+    locked = lock_open(emergency)
     current = locked.status
     if new_status not in TRANSITIONS[current]:
         raise WorkflowError(
@@ -77,7 +77,7 @@ def change_status(emergency: Emergency, new_status: str, actor, note: str = "") 
 
 @transaction.atomic
 def add_note(emergency: Emergency, actor, note: str) -> StatusLog:
-    locked = _lock_open(emergency)
+    locked = lock_open(emergency)
     note = note.strip()
     if not note:
         raise WorkflowError("Write a note.")
@@ -90,7 +90,7 @@ def add_note(emergency: Emergency, actor, note: str) -> StatusLog:
 
 @transaction.atomic
 def save_impact(emergency: Emergency, actor, values: dict) -> Impact:
-    locked = _lock_open(emergency)
+    locked = lock_open(emergency)
     impact, _ = Impact.objects.update_or_create(
         emergency=locked, defaults={**values, "recorded_by": actor}
     )
