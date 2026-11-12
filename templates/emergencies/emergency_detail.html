@@ -44,11 +44,45 @@
   <section class="card">
     <h2>Action plan</h2>
     {% if plan %}
-      {% with total=plan.actions.count %}
-        <p>{{ plan.get_status_display }} plan with {{ total }} action{{ total|pluralize }}.</p>
-      {% endwith %}
+      <p>Status: {{ plan.get_status_display }}</p>
+      <ul>
+        {% for action, can_update in plan_rows %}
+          <li>
+            {{ action.description }}
+            {% if action.code %}· {{ action.get_code_display }}{% endif %}
+            · {{ action.owner.username|default:"Unassigned" }}
+            {% if action.due_date %}· due {{ action.due_date|date:"Y-m-d" }}{% endif %}
+            · {{ action.get_status_display }}
+            {% if can_update %}
+              <form method="post" action="{% url 'plans:action_advance' action.pk %}">
+                {% csrf_token %}
+                <button type="submit">Advance</button>
+              </form>
+            {% endif %}
+          </li>
+        {% empty %}
+          <li>No actions yet.</li>
+        {% endfor %}
+      </ul>
+      {% if assignments %}
+        <h3>Resources</h3>
+        <ul>
+          {% for assignment in assignments %}
+            <li>{{ assignment.quantity }} × {{ assignment.resource.name }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      <p>
+        <a href="{% url 'plans:plan_detail' emergency.pk %}">{% if can_edit_plan %}Manage the plan{% else %}View the plan{% endif %}</a>
+      </p>
     {% else %}
       <p>No action plan yet.</p>
+      {% if can_start_plan %}
+        <form method="post" action="{% url 'plans:plan_start' emergency.pk %}">
+          {% csrf_token %}
+          <button type="submit">Start the plan</button>
+        </form>
+      {% endif %}
     {% endif %}
   </section>
 

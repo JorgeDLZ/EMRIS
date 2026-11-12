@@ -1,0 +1,294 @@
+from datetime import timedelta
+
+import pytest
+from django.contrib.auth.models import Group
+from django.urls import reverse
+from django.utils import timezone
+
+from apps.accounts.models import User
+from apps.accounts.roles import ACTION_OWNER, ADMINISTRATOR, OPERATOR, RISK_MANAGER
+from apps.emergencies.models import CLOSED, REPORTED, Emergency, EmergencyType
+from apps.places.models import Department, Municipality
+from apps.plans.models import (
+    APPROVED,
+    IN_PROGRESS,
+    KIT,
+    Action,
+    ActionPlan,
+    Resource,
+    ResourceAssignment,
+)
+
+PASSWORD = "pass-12345"
+
+
+def make_user(username, role=None):
+    user = User.objects.create_user(username, password=PASSWORD)
+    if role:
+        user.groups.add(Group.objects.get(name=role))
+    return user
+
+
+def login(client, user):
+    client.login(username=user.username, password=PASSWORD)
+    return client
+
+
+@pytest.fixture
+def make_emergency(db):
+    department = Department.objects.create(code="05", name="ANTIOQUIA")
+    municipality = Municipality.objects.create(department=department, code="05001", name="MEDELLÍN")
+    flood = EmergencyType.objects.create(name="Flood")
+
+    def build(status=REPORTED):
+        return Emergency.objects.create(
+            emergency_type=flood,
+            municipality=municipality,
+            occurred_at=timezone.now() - timedelta(hours=1),
+            status=status,
+        )
+
+    return build
+
+
+def test_operator_drafts_plan_but_cannot_approve(client, make_emergency):
+    emergency = make_emergency()
+    login(client, make_user("operator", OPERATOR))
+
+    response = client.post(reverse("plans:plan_start", args=[emergency.pk]))
+    assert response.status_code == 302
+    assert ActionPlan.objects.filter(emergency=emergency).exists()
+
+    response = client.post(
+        reverse("plans:action_create", args=[emergency.pk]),
+        {"description": "Evacuate the area", "code": "", "owner": "", "due_date": ""},
+    )
+    assert response.status_code == 302
+    assert emergency.action_plan.actions.count() == 1
+
+    response = client.post(reverse("plans:plan_approve", args=[emergency.pk]))
+    assert response.status_code == 403
+    assert not ActionPlan.objects.get(emergency=emergency).is_approved
+
+
+def test_risk_manager_approves(client, make_emergency):
+    emergency = make_emergency()
+    plan = ActionPlan.objects.create(emergency=emergency)
+    Action.objects.create(plan=plan, description="Evacuate")
+
+    login(client, make_user("manager", RISK_MANAGER))
+    response = client.post(reverse("plans:plan_approve", args=[emergency.pk]))
+    assert response.status_code == 302
+    plan.refresh_from_db()
+    assert plan.status == APPROVED
+
+    login(client, make_user("operator", OPERATOR))
+    response = client.post(
+        reverse("plans:action_create", args=[emergency.pk]), {"description": "More"}
+    )
+    assert response.status_code == 403
+    assert plan.actions.count() == 1
+
+
+def test_action_owner_advances_own_action_only(client, make_emergency):
+    emergency = make_emergency()
+    plan = ActionPlan.objects.create(emergency=emergency)
+    owner = make_user("owner", ACTION_OWNER)
+    other = make_user("other", ACTION_OWNER)
+    own_action = Action.objects.create(plan=plan, description="Own", owner=owner)
+    other_action = Action.objects.create(plan=plan, description="Other", owner=other)
+
+    login(client, owner)
+    assert client.get(reverse("plans:plan_detail", args=[emergency.pk])).status_code == 200
+    response = client.post(reverse("plans:action_advance", args=[own_action.pk]))
+    assert response.status_code == 302
+    own_action.refresh_from_db()
+    assert own_action.status == IN_PROGRESS
+
+    response = client.post(reverse("plans:action_advance", args=[other_action.pk]))
+    assert response.status_code == 403
+    other_action.refresh_from_db()
+    assert other_action.status != IN_PROGRESS
+
+
+def test_action_owner_cannot_open_unrelated_plan(client, make_emergency):
+    emergency = make_emergency()
+    ActionPlan.objects.create(emergency=emergency)
+    login(client, make_user("owner", ACTION_OWNER))
+    assert client.get(reverse("plans:plan_detail", args=[emergency.pk])).status_code == 404
+
+
+def test_assignment_over_remaining_is_form_error(client, make_emergency):
+    emergency = make_emergency()
+    ActionPlan.objects.create(emergency=emergency)
+    kits = Resource.objects.create(name="Food kits", kind=KIT, quantity_available=10)
+    other_plan = ActionPlan.objects.create(emergency=make_emergency())
+    ResourceAssignment.objects.create(plan=other_plan, resource=kits, quantity=6)
+
+    login(client, make_user("operator", OPERATOR))
+    response = client.post(
+        reverse("plans:assignment_create", args=[emergency.pk]),
+        {"resource": kits.pk, "quantity": 7},
+    )
+    assert response.status_code == 200
+    assert "Only 4 Food kits remain." in response.content.decode()
+    assert not ResourceAssignment.objects.filter(plan=emergency.action_plan).exists()
+
+    response = client.post(
+        reverse("plans:assignment_create", args=[emergency.pk]),
+        {"resource": kits.pk, "quantity": 0},
+    )
+    assert response.status_code == 200
+    assert not ResourceAssignment.objects.filter(plan=emergency.action_plan).exists()
+
+    response = client.post(
+        reverse("plans:assignment_create", args=[emergency.pk]),
+        {"resource": kits.pk, "quantity": 4},
+    )
+    assert response.status_code == 302
+    assert ResourceAssignment.objects.get(plan=emergency.action_plan).quantity == 4
+
+
+def test_resources_page_access(client, db):
+    url = reverse("plans:resource_list")
+    for username, role, status in [
+        ("admin", ADMINISTRATOR, 200),
+        ("manager", RISK_MANAGER, 200),
+        ("operator", OPERATOR, 403),
+        ("owner", ACTION_OWNER, 403),
+    ]:
+        login(client, make_user(username, role))
+        assert client.get(url).status_code == status
+
+
+def test_resource_pages_create_and_edit(client, db):
+    login(client, make_user("admin", ADMINISTRATOR))
+    response = client.post(
+        reverse("plans:resource_create"),
+        {"name": "Food kit", "kind": KIT, "quantity_available": 5},
+    )
+    assert response.status_code == 302
+    resource = Resource.objects.get(name="Food kit")
+
+    response = client.post(
+        reverse("plans:resource_edit", args=[resource.pk]),
+        {"name": "Food kit", "kind": KIT, "quantity_available": 9},
+    )
+    assert response.status_code == 302
+    resource.refresh_from_db()
+    assert resource.quantity_available == 9
+    assert "Food kit" in client.get(reverse("plans:resource_list")).content.decode()
+
+
+def test_resource_duplicate_name(client, db):
+    Resource.objects.create(name="Food kit", kind=KIT, quantity_available=5)
+    login(client, make_user("admin", ADMINISTRATOR))
+    response = client.post(
+        reverse("plans:resource_create"),
+        {"name": "food kit", "kind": KIT, "quantity_available": 3},
+    )
+    assert response.status_code == 200
+    assert "A resource with this name already exists." in response.content.decode()
+    assert Resource.objects.count() == 1
+
+
+def test_closed_emergency_plan_posts_refused(client, make_emergency):
+    emergency = make_emergency(status=CLOSED)
+    plan = ActionPlan.objects.create(emergency=emergency)
+    owner = make_user("owner", ACTION_OWNER)
+    action = Action.objects.create(plan=plan, description="Own", owner=owner)
+    resource = Resource.objects.create(name="Food kits", kind=KIT, quantity_available=10)
+    assignment = ResourceAssignment.objects.create(plan=plan, resource=resource, quantity=1)
+
+    login(client, make_user("admin", ADMINISTRATOR))
+    assert client.post(reverse("plans:plan_start", args=[emergency.pk])).status_code == 403
+    assert (
+        client.post(
+            reverse("plans:action_create", args=[emergency.pk]), {"description": "x"}
+        ).status_code
+        == 403
+    )
+    assert client.post(reverse("plans:action_advance", args=[action.pk])).status_code == 403
+    assert (
+        client.post(
+            reverse("plans:assignment_create", args=[emergency.pk]),
+            {"resource": resource.pk, "quantity": 1},
+        ).status_code
+        == 403
+    )
+    assert client.post(reverse("plans:assignment_remove", args=[assignment.pk])).status_code == 403
+    assert client.post(reverse("plans:plan_approve", args=[emergency.pk])).status_code == 403
+
+
+def test_state_changing_views_are_post_only(client, make_emergency):
+    emergency = make_emergency()
+    plan = ActionPlan.objects.create(emergency=emergency)
+    action = Action.objects.create(plan=plan, description="x")
+    resource = Resource.objects.create(name="Food kits", kind=KIT, quantity_available=10)
+    assignment = ResourceAssignment.objects.create(plan=plan, resource=resource, quantity=1)
+
+    login(client, make_user("admin", ADMINISTRATOR))
+    for name, args in [
+        ("plans:plan_start", [emergency.pk]),
+        ("plans:plan_approve", [emergency.pk]),
+        ("plans:action_advance", [action.pk]),
+        ("plans:assignment_create", [emergency.pk]),
+        ("plans:assignment_remove", [assignment.pk]),
+    ]:
+        assert client.get(reverse(name, args=args)).status_code == 405
+
+
+def test_emergency_detail_shows_plan_block(client, make_emergency):
+    emergency = make_emergency()
+    plan = ActionPlan.objects.create(emergency=emergency)
+    owner = make_user("owner", ACTION_OWNER)
+    action = Action.objects.create(plan=plan, description="Open shelter", owner=owner)
+    Action.objects.create(plan=plan, description="Someone else's")
+
+    login(client, owner)
+    html = client.get(reverse("emergencies:emergency_detail", args=[emergency.pk])).content.decode()
+    assert "Open shelter" in html
+    assert reverse("plans:action_advance", args=[action.pk]) in html
+    other = Action.objects.get(description="Someone else's")
+    assert reverse("plans:action_advance", args=[other.pk]) not in html
+
+
+def test_emergency_closed_after_policy_check_is_handled(client, make_emergency, monkeypatch):
+    emergency = make_emergency(status=CLOSED)
+    plan = ActionPlan.objects.create(emergency=emergency)
+    action = Action.objects.create(plan=plan, description="x")
+    resource = Resource.objects.create(name="Food kits", kind=KIT, quantity_available=10)
+    assignment = ResourceAssignment.objects.create(plan=plan, resource=resource, quantity=1)
+    for name in ("can_start_plan", "can_approve_plan", "can_edit_plan", "can_update_action"):
+        monkeypatch.setattr(f"apps.plans.views.{name}", lambda *args: True)
+
+    login(client, make_user("admin", ADMINISTRATOR))
+    message = "This emergency is closed."
+
+    for name, args in [
+        ("plans:plan_start", [emergency.pk]),
+        ("plans:plan_approve", [emergency.pk]),
+        ("plans:action_advance", [action.pk]),
+        ("plans:assignment_remove", [assignment.pk]),
+    ]:
+        response = client.post(reverse(name, args=args), follow=True)
+        assert message in response.content.decode()
+
+    response = client.post(
+        reverse("plans:action_create", args=[emergency.pk]), {"description": "x"}
+    )
+    assert response.status_code == 200
+    assert message in response.content.decode()
+
+    response = client.post(
+        reverse("plans:action_edit", args=[action.pk]), {"description": "y"}
+    )
+    assert response.status_code == 200
+    assert message in response.content.decode()
+
+    response = client.post(
+        reverse("plans:assignment_create", args=[emergency.pk]),
+        {"resource": resource.pk, "quantity": 1},
+    )
+    assert response.status_code == 200
+    assert message in response.content.decode()

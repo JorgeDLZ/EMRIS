@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}EMRIS — {% if resource %}Edit resource{% else %}Add resource{% endif %}{% endblock %}
+
+{% block content %}
+  <h1>{% if resource %}Edit resource{% else %}Add a resource{% endif %}</h1>
+  <form method="post" class="card">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save</button>
+  </form>
+  <p><a href="{% url 'plans:resource_list' %}">Back to resources</a></p>
+{% endblock %}

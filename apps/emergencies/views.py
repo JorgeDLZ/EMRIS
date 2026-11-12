@@ -7,11 +7,20 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import role_required
 from apps.accounts.roles import ADMINISTRATOR, ALL_ROLES, RISK_MANAGER
+from apps.plans.models import DONE
 from ml.text import normalize_name
 
 from .forms import EmergencyForm, EmergencyTypeForm, ImpactForm
 from .models import STATUS_CHOICES, Emergency, EmergencyType, Impact
-from .policies import EDIT_ROLES, allowed_statuses, can_edit_emergency, visible_emergencies
+from .policies import (
+    EDIT_ROLES,
+    allowed_statuses,
+    can_edit_emergency,
+    can_edit_plan,
+    can_start_plan,
+    can_update_action,
+    visible_emergencies,
+)
 from .workflow import LABELS, WorkflowError, add_note, change_status, create_emergency, save_impact
 
 PAGE_SIZE = 25
@@ -112,6 +121,15 @@ def emergency_detail(request, pk):
     log = list(emergency.status_log.select_related("author"))
     for entry in log:
         entry.status_label = LABELS.get(entry.status, entry.status)
+    plan = getattr(emergency, "action_plan", None)
+    plan_rows = []
+    assignments = []
+    if plan is not None:
+        plan_rows = [
+            (action, can_update_action(user, action) and action.status != DONE)
+            for action in plan.actions.select_related("owner")
+        ]
+        assignments = plan.assignments.select_related("resource")
     return render(
         request,
         "emergencies/emergency_detail.html",
@@ -119,7 +137,11 @@ def emergency_detail(request, pk):
             "emergency": emergency,
             "impact": Impact.objects.filter(emergency=emergency).first(),
             "log": log,
-            "plan": getattr(emergency, "action_plan", None),
+            "plan": plan,
+            "plan_rows": plan_rows,
+            "assignments": assignments,
+            "can_start_plan": can_start_plan(user, emergency),
+            "can_edit_plan": plan is not None and can_edit_plan(user, plan),
             "can_edit": can_edit_emergency(user, emergency),
             "next_statuses": [(status, LABELS[status]) for status in allowed_statuses(user, emergency)],
         },

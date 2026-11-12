@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+
+{% block title %}EMRIS — {% if action %}Edit action{% else %}Add action{% endif %}{% endblock %}
+
+{% block content %}
+  <h1>{% if action %}Edit the action{% else %}Add an action{% endif %}</h1>
+  {% include "_messages.html" %}
+  <form method="post" class="card">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save</button>
+  </form>
+  <p><a href="{% url 'plans:plan_detail' emergency.pk %}">Back to the action plan</a></p>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}EMRIS — Resources{% endblock %}
+
+{% block content %}
+  <h1>Resources</h1>
+  {% include "_messages.html" %}
+  <p><a href="{% url 'plans:resource_create' %}">Add a resource</a></p>
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Kind</th><th>In stock</th><th>Remaining</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for resource, remaining in rows %}
+        <tr>
+          <td>{{ resource.name }}</td>
+          <td>{{ resource.get_kind_display }}</td>
+          <td>{{ resource.quantity_available }}</td>
+          <td>{{ remaining }}</td>
+          <td><a href="{% url 'plans:resource_edit' resource.pk %}">Edit</a></td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5">No resources found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

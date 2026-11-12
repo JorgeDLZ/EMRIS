@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}EMRIS — Action plan{% endblock %}
+
+{% block content %}
+  <h1>Action plan</h1>
+  {% include "_messages.html" %}
+  <p>{{ emergency.emergency_type.name }} in {{ emergency.municipality.name }} ({{ emergency.municipality.department.name }}), {{ emergency.occurred_at|date:"Y-m-d H:i" }}</p>
+
+  {% if not plan %}
+    <section class="card">
+      <p>No action plan yet.</p>
+      {% if can_start %}
+        <form method="post" action="{% url 'plans:plan_start' emergency.pk %}">
+          {% csrf_token %}
+          <button type="submit">Start the plan</button>
+        </form>
+      {% endif %}
+    </section>
+  {% else %}
+    <section class="card">
+      <h2>Status: {{ plan.get_status_display }}</h2>
+      {% if can_approve %}
+        <form method="post" action="{% url 'plans:plan_approve' emergency.pk %}">
+          {% csrf_token %}
+          <button type="submit">Approve the plan</button>
+        </form>
+      {% endif %}
+    </section>
+
+    <section class="card">
+      <h2>Actions</h2>
+      <table>
+        <thead>
+          <tr><th>Description</th><th>Type</th><th>Owner</th><th>Due</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for action, can_update in rows %}
+            <tr>
+              <td>{{ action.description }}</td>
+              <td>{{ action.get_code_display }}</td>
+              <td>{{ action.owner.username|default:"Unassigned" }}</td>
+              <td>{{ action.due_date|date:"Y-m-d" }}</td>
+              <td>{{ action.get_status_display }}</td>
+              <td>
+                {% if can_update %}
+                  <form method="post" action="{% url 'plans:action_advance' action.pk %}">
+                    {% csrf_token %}
+                    <button type="submit">Advance</button>
+                  </form>
+                {% endif %}
+                {% if can_edit %}<a href="{% url 'plans:action_edit' action.pk %}">Edit</a>{% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="6">No actions yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if can_edit %}<p><a href="{% url 'plans:action_create' emergency.pk %}">Add an action</a></p>{% endif %}
+    </section>
+
+    <section class="card">
+      <h2>Resources</h2>
+      <table>
+        <thead>
+          <tr><th>Resource</th><th>Kind</th><th>Quantity</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for assignment in assignments %}
+            <tr>
+              <td>{{ assignment.resource.name }}</td>
+              <td>{{ assignment.resource.get_kind_display }}</td>
+              <td>{{ assignment.quantity }}</td>
+              <td>
+                {% if can_edit %}
+                  <form method="post" action="{% url 'plans:assignment_remove' assignment.pk %}">
+                    {% csrf_token %}
+                    <button type="submit">Remove</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="4">No resources assigned.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% if can_edit %}
+        <form method="post" action="{% url 'plans:assignment_create' emergency.pk %}">
+          {% csrf_token %}
+          {{ assignment_form.as_p }}
+          <button type="submit">Assign</button>
+        </form>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  <p><a href="{% url 'emergencies:emergency_detail' emergency.pk %}">Back to the emergency</a></p>
+{% endblock %}

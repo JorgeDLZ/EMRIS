@@ -9,5 +9,6 @@ urlpatterns = [
     path("accounts/", include("apps.accounts.urls")),
     path("places/", include("apps.places.urls")),
     path("emergencies/", include("apps.emergencies.urls")),
+    path("plans/", include("apps.plans.urls")),
     path("", home, name="home"),
 ]
