@@ -20,6 +20,39 @@
     {% if can_edit %}<p><a href="{% url 'emergencies:emergency_edit' emergency.pk %}">Edit emergency</a></p>{% endif %}
   </section>
 
+  {% if emergency.is_earthquake %}
+    <section class="card">
+      <h2>SGC seismic event</h2>
+      {% if emergency.seismic_event %}
+        <p>
+          Magnitude {{ emergency.seismic_event.magnitude }} · depth {{ emergency.seismic_event.depth_km }} km ·
+          {{ emergency.seismic_event.place }} · {{ emergency.seismic_link_distance_km|floatformat:1 }} km away ·
+          SGC id {{ emergency.seismic_event.sgc_id }}
+        </p>
+        {% if can_edit %}
+          <form method="post" action="{% url 'emergencies:seismic_clear' emergency.pk %}">
+            {% csrf_token %}
+            <button type="submit">Clear</button>
+          </form>
+        {% endif %}
+      {% elif suggestion %}
+        <p>
+          Suggested: magnitude {{ suggestion.event.magnitude }} · depth {{ suggestion.event.depth_km }} km ·
+          {{ suggestion.event.place }} · {{ suggestion.distance_km|floatformat:1 }} km away ·
+          SGC id {{ suggestion.event.sgc_id }}
+        </p>
+        {% if can_edit %}
+          <form method="post" action="{% url 'emergencies:seismic_confirm' emergency.pk %}">
+            {% csrf_token %}
+            <button type="submit">Confirm</button>
+          </form>
+        {% endif %}
+      {% else %}
+        <p>No SGC event matches; enter magnitude and depth in the form.</p>
+      {% endif %}
+    </section>
+  {% endif %}
+
   <section class="card">
     <h2>Impact</h2>
     {% if impact %}

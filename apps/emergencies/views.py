@@ -8,6 +8,7 @@ from django.views.decorators.http import require_POST
 from apps.accounts.permissions import role_required
 from apps.accounts.roles import ADMINISTRATOR, ALL_ROLES, RISK_MANAGER
 from apps.plans.models import DONE
+from apps.seismic.services import clear_link, confirm_link, suggest_link
 from ml.text import normalize_name
 
 from .forms import EmergencyForm, EmergencyTypeForm, ImpactForm
@@ -24,6 +25,10 @@ from .policies import (
 from .workflow import LABELS, WorkflowError, add_note, change_status, create_emergency, save_impact
 
 PAGE_SIZE = 25
+
+
+def _to_minute(moment):
+    return moment.replace(second=0, microsecond=0)
 
 
 def _editable_emergency(user, pk):
@@ -130,11 +135,15 @@ def emergency_detail(request, pk):
             for action in plan.actions.select_related("owner")
         ]
         assignments = plan.assignments.select_related("resource")
+    suggestion = None
+    if emergency.is_earthquake and emergency.seismic_event is None:
+        suggestion = suggest_link(emergency)
     return render(
         request,
         "emergencies/emergency_detail.html",
         {
             "emergency": emergency,
+            "suggestion": suggestion,
             "impact": Impact.objects.filter(emergency=emergency).first(),
             "log": log,
             "plan": plan,
@@ -154,9 +163,19 @@ def _save_emergency_fields(user, emergency, form):
     if not can_edit_emergency(user, locked):
         raise PermissionDenied
     fields = EmergencyForm.Meta.fields
+    link_changed = (
+        locked.emergency_type_id != form.instance.emergency_type_id
+        or locked.municipality_id != form.instance.municipality_id
+        or _to_minute(locked.occurred_at) != _to_minute(form.instance.occurred_at)
+    )
     for name in fields:
         setattr(locked, name, getattr(form.instance, name))
-    locked.save(update_fields=[*fields, "updated_at"])
+    update_fields = [*fields, "updated_at"]
+    if link_changed:
+        locked.seismic_event = None
+        locked.seismic_link_distance_km = None
+        update_fields += ["seismic_event", "seismic_link_distance_km"]
+    locked.save(update_fields=update_fields)
 
 
 @role_required(*EDIT_ROLES)
@@ -213,4 +232,33 @@ def note_add(request, pk):
         messages.error(request, str(error))
     else:
         messages.success(request, "The note was added.")
+    return redirect("emergencies:emergency_detail", pk=emergency.pk)
+
+
+@require_POST
+@role_required(*EDIT_ROLES)
+def seismic_confirm(request, pk):
+    emergency = _editable_emergency(request.user, pk)
+    try:
+        suggestion = confirm_link(emergency)
+    except WorkflowError as error:
+        messages.error(request, str(error))
+    else:
+        if suggestion is None:
+            messages.error(request, "No SGC event matches; enter magnitude and depth in the form.")
+        else:
+            messages.success(request, "The SGC event was linked.")
+    return redirect("emergencies:emergency_detail", pk=emergency.pk)
+
+
+@require_POST
+@role_required(*EDIT_ROLES)
+def seismic_clear(request, pk):
+    emergency = _editable_emergency(request.user, pk)
+    try:
+        clear_link(emergency)
+    except WorkflowError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "The SGC link was cleared.")
     return redirect("emergencies:emergency_detail", pk=emergency.pk)

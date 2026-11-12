@@ -15,4 +15,6 @@ urlpatterns = [
     path("<int:pk>/impact/", views.impact_edit, name="impact_edit"),
     path("<int:pk>/status/", views.status_change, name="status_change"),
     path("<int:pk>/notes/", views.note_add, name="note_add"),
+    path("<int:pk>/seismic/confirm/", views.seismic_confirm, name="seismic_confirm"),
+    path("<int:pk>/seismic/clear/", views.seismic_clear, name="seismic_clear"),
 ]
