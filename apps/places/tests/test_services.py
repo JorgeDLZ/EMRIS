@@ -112,3 +112,15 @@ def test_reject_refuses_approved(db):
     with pytest.raises(ValueError):
         reject_municipality(medellin)
     assert Municipality.objects.filter(pk=medellin.pk).exists()
+
+
+def test_registration_race_is_a_duplicate(db, monkeypatch):
+    department, _ = make_medellin()
+    operator = make_user("op", OPERATOR)
+    register_municipality(department, "Nueva Villa", operator)
+    monkeypatch.setattr(
+        "apps.places.services.Municipality.objects.filter",
+        lambda *args, **kwargs: Municipality.objects.none(),
+    )
+    with pytest.raises(DuplicateMunicipality):
+        register_municipality(department, "Nueva Villa", operator)

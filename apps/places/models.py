@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 
+from apps.accounts.roles import OPERATOR, get_role
 from ml.text import normalize_name
 
 
@@ -23,6 +24,11 @@ class Department(models.Model):
 class MunicipalityQuerySet(models.QuerySet):
     def approved(self):
         return self.filter(validation=Municipality.APPROVED)
+
+    def visible_to(self, user):
+        if get_role(user) == OPERATOR:
+            return self.filter(models.Q(validation=Municipality.APPROVED) | models.Q(created_by=user))
+        return self.all()
 
 
 class Municipality(models.Model):

@@ -2,7 +2,7 @@ import csv
 from difflib import SequenceMatcher
 from pathlib import Path
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from apps.accounts.roles import OPERATOR, get_role
 from ml.text import normalize_name
@@ -57,11 +57,14 @@ def load_divipola(path: str | Path) -> int:
     return len(municipalities)
 
 
-def find_similar(department: Department, name: str, cutoff: float = 0.75) -> list[Municipality]:
+def find_similar(
+    department: Department, name: str, cutoff: float = 0.75, queryset=None
+) -> list[Municipality]:
     key = normalize_name(name)
+    candidates = Municipality.objects.all() if queryset is None else queryset
     return [
         municipality
-        for municipality in Municipality.objects.filter(department=department)
+        for municipality in candidates.filter(department=department)
         if SequenceMatcher(None, key, municipality.name_key).ratio() >= cutoff
     ]
 
@@ -71,13 +74,17 @@ def register_municipality(department: Department, name: str, actor) -> Municipal
     if Municipality.objects.filter(department=department, name_key=key).exists():
         raise DuplicateMunicipality(f"{name} already exists in {department.name}")
     validation = Municipality.PENDING if get_role(actor) == OPERATOR else Municipality.APPROVED
-    return Municipality.objects.create(
-        department=department,
-        name=name.strip(),
-        source=Municipality.USER,
-        validation=validation,
-        created_by=actor,
-    )
+    try:
+        with transaction.atomic():
+            return Municipality.objects.create(
+                department=department,
+                name=name.strip(),
+                source=Municipality.USER,
+                validation=validation,
+                created_by=actor,
+            )
+    except IntegrityError as error:
+        raise DuplicateMunicipality(f"{name} already exists in {department.name}") from error
 
 
 def approve_municipality(municipality: Municipality) -> None:

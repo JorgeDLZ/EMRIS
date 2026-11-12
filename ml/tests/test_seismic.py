@@ -6,12 +6,15 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from ml.data import MUNICIPALITY_ALIASES, clean_ungrd, municipality_centroids, read_divipola
 from ml.seismic import (
     LinkCandidate,
     SGC_MUNICIPALITY_ALIASES,
     SeismicFeatures,
     link_radius_km,
+    link_window,
     parse_place,
     read_catalog,
     seismic_features,
@@ -184,3 +187,16 @@ def test_real_seismic_features():
     assert sum(f.shallow_event_count > 0 for f in features.values()) == 525
     assert features["25438"] == SeismicFeatures(19, 6.4)
     assert features["68418"] == SeismicFeatures(0, 0.0)
+
+
+def test_naive_event_time_is_rejected():
+    naive = LinkCandidate("naive", datetime(2025, 6, 8, 12, 0), 5.0, *BOGOTA)
+    with pytest.raises(ValueError, match="timezone-aware"):
+        suggest_event(date(2025, 6, 8), *BOGOTA, [naive])
+
+
+def test_link_window_bounds():
+    start, end = link_window(date(2025, 6, 8))
+    assert start == datetime(2025, 6, 6, 5, 0, tzinfo=timezone.utc)
+    assert end == datetime(2025, 6, 9, 5, 0, tzinfo=timezone.utc)
+    assert start.utcoffset() == timedelta(hours=-5)

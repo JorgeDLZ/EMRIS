@@ -180,3 +180,19 @@ def test_nav_links_follow_role(client, db):
 
     client.force_login(make_user("alan", ACTION_OWNER))
     assert link not in client.get(reverse("home")).content.decode()
+
+
+def test_operator_similar_warning_hides_other_operators_pending(client, antioquia):
+    Municipality.objects.create(
+        department=antioquia,
+        name="Nueva Villa",
+        source=Municipality.USER,
+        validation=Municipality.PENDING,
+        created_by=make_user("olga", OPERATOR),
+    )
+    client.force_login(make_user("omar", OPERATOR))
+    response = client.post(
+        reverse("places:municipality_create"), {"department": antioquia.pk, "name": "Nueva Vila"}
+    )
+    assert response.status_code == 302
+    assert Municipality.objects.filter(name="Nueva Vila").exists()

@@ -57,7 +57,7 @@ def load_baseline(ungrd_path: str | Path, divipola_path: str | Path) -> Baseline
 
     by_code, by_name = _municipality_lookups()
     departments = {department.name_key: department for department in Department.objects.all()}
-    type_ids = dict(EmergencyType.objects.values_list("name", "id"))
+    type_ids = dict(EmergencyType.objects.filter(seed_key__isnull=False).values_list("seed_key", "id"))
 
     instances = []
     for row in cleaned.records.to_dict("records"):

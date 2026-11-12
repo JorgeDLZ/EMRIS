@@ -67,3 +67,41 @@ def test_deactivate(client, db):
     listing = client.get(reverse("emergencies:type_list"))
     assert emergency_type in listing.context["types"]
     assert "Inactive" in listing.content.decode()
+
+
+def test_seed_matches_case_insensitive_name(db):
+    EmergencyType.objects.create(name="flood")
+    assert seed_emergency_types(["Flood"]) == 0
+    assert EmergencyType.objects.count() == 1
+    assert EmergencyType.objects.get(name="flood").seed_key == "Flood"
+
+
+def test_renamed_seeded_type_is_not_forked(db):
+    assert seed_emergency_types(["Flood"]) == 1
+    EmergencyType.objects.filter(seed_key="Flood").update(name="Floods")
+    assert seed_emergency_types(["Flood"]) == 0
+    assert EmergencyType.objects.count() == 1
+    assert EmergencyType.objects.get().name == "Floods"
+
+
+def test_operator_post_is_refused(client, db):
+    emergency_type = EmergencyType.objects.create(name="Flood")
+    client.force_login(make_user("olga", OPERATOR))
+    response = client.post(reverse("emergencies:type_create"), {"name": "Landslide", "is_active": "on"})
+    assert response.status_code == 403
+    response = client.post(
+        reverse("emergencies:type_edit", args=[emergency_type.pk]), {"name": "Changed", "is_active": "on"}
+    )
+    assert response.status_code == 403
+    assert list(EmergencyType.objects.values_list("name", flat=True)) == ["Flood"]
+
+
+def test_edit_saves_name(client, db):
+    emergency_type = EmergencyType.objects.create(name="Flood")
+    client.force_login(make_user("rita", RISK_MANAGER))
+    response = client.post(
+        reverse("emergencies:type_edit", args=[emergency_type.pk]), {"name": "Floods", "is_active": "on"}
+    )
+    assert response.status_code == 302
+    emergency_type.refresh_from_db()
+    assert emergency_type.name == "Floods"

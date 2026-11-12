@@ -120,6 +120,12 @@ def link_radius_km(magnitude: float) -> float:
     return max(MIN_LINK_RADIUS_KM, 10 ** (0.5 * magnitude - 0.55))
 
 
+def link_window(reported_on: date) -> tuple[datetime, datetime]:
+    start = datetime.combine(reported_on - timedelta(days=LINK_WINDOW_DAYS), time.min, COLOMBIA_TZ)
+    end = datetime.combine(reported_on + timedelta(days=1), time.min, COLOMBIA_TZ)
+    return start, end
+
+
 def suggest_event(
     reported_on: date,
     latitude: float | None,
@@ -128,10 +134,11 @@ def suggest_event(
 ) -> SeismicLink | None:
     if latitude is None or longitude is None:
         return None
-    start = datetime.combine(reported_on - timedelta(days=LINK_WINDOW_DAYS), time.min, COLOMBIA_TZ)
-    end = datetime.combine(reported_on + timedelta(days=1), time.min, COLOMBIA_TZ)
+    start, end = link_window(reported_on)
     best: tuple[float, float, str] | None = None
     for event in candidates:
+        if event.event_time.tzinfo is None:
+            raise ValueError("event_time must be timezone-aware")
         if not start <= event.event_time.astimezone(COLOMBIA_TZ) < end:
             continue
         distance = haversine_km(latitude, longitude, event.latitude, event.longitude)

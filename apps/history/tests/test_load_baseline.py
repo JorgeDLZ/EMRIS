@@ -115,3 +115,14 @@ def test_command_prints_summary(db, tmp_path, capsys):
     assert "Records loaded: 1" in output
     assert "Emergency types created: 28" in output
     assert "unknown municipality: ANTIOQUIA/NOWHERE VILLE: 1" in output
+
+
+def test_reload_after_rename_keeps_records_on_the_renamed_type(db, tmp_path):
+    path = write_ungrd(tmp_path / "small.csv", [ungrd_row()])
+    load_baseline(path, DIVIPOLA)
+    record = UngrdRecord.objects.get()
+    original_name = record.emergency_type.name
+    EmergencyType.objects.filter(pk=record.emergency_type_id).update(name="Renamed type")
+    load_baseline(path, DIVIPOLA)
+    assert not EmergencyType.objects.filter(name=original_name).exists()
+    assert UngrdRecord.objects.get().emergency_type.name == "Renamed type"

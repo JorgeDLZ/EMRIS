@@ -1,11 +1,10 @@
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import role_required
-from apps.accounts.roles import ADMINISTRATOR, OPERATOR, RISK_MANAGER, get_role
+from apps.accounts.roles import ADMINISTRATOR, OPERATOR, RISK_MANAGER
 from ml.text import normalize_name
 
 from .forms import MunicipalityForm
@@ -23,11 +22,7 @@ PAGE_SIZE = 50
 
 @role_required(ADMINISTRATOR, RISK_MANAGER, OPERATOR)
 def municipality_list(request):
-    municipalities = Municipality.objects.select_related("department")
-    if get_role(request.user) == OPERATOR:
-        municipalities = municipalities.filter(
-            Q(validation=Municipality.APPROVED) | Q(created_by=request.user)
-        )
+    municipalities = Municipality.objects.visible_to(request.user).select_related("department")
 
     department = request.GET.get("department", "")
     if department.isdigit():
@@ -58,7 +53,9 @@ def municipality_create(request):
     if request.method == "POST" and form.is_valid():
         department = form.cleaned_data["department"]
         name = form.cleaned_data["name"]
-        similar = find_similar(department, name)
+        similar = find_similar(
+            department, name, queryset=Municipality.objects.visible_to(request.user)
+        )
         key = normalize_name(name)
         is_exact = any(match.name_key == key for match in similar)
         if similar and not is_exact and not form.cleaned_data["confirm_new"]:
