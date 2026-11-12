@@ -2,9 +2,11 @@ from pathlib import Path
 
 import pytest
 from django.contrib.auth.models import Group
+from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.accounts.roles import OPERATOR, RISK_MANAGER
+from apps.emergencies.models import Emergency, EmergencyType
 from apps.places.models import Department, Municipality
 from apps.places.services import (
     DuplicateMunicipality,
@@ -124,3 +126,16 @@ def test_registration_race_is_a_duplicate(db, monkeypatch):
     )
     with pytest.raises(DuplicateMunicipality):
         register_municipality(department, "Nueva Villa", operator)
+
+
+def test_reject_refuses_municipality_in_use(db):
+    department, _ = make_medellin()
+    municipality = register_municipality(department, "Nuevo Lugar", make_user("op", OPERATOR))
+    Emergency.objects.create(
+        emergency_type=EmergencyType.objects.create(name="Flood"),
+        municipality=municipality,
+        occurred_at=timezone.now(),
+    )
+    with pytest.raises(ValueError, match="Nuevo Lugar has emergencies and cannot be rejected."):
+        reject_municipality(municipality)
+    assert Municipality.objects.filter(pk=municipality.pk).exists()

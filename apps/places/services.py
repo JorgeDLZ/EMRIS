@@ -3,6 +3,7 @@ from difflib import SequenceMatcher
 from pathlib import Path
 
 from django.db import IntegrityError, transaction
+from django.db.models import ProtectedError
 
 from apps.accounts.roles import OPERATOR, get_role
 from ml.text import normalize_name
@@ -95,4 +96,8 @@ def approve_municipality(municipality: Municipality) -> None:
 def reject_municipality(municipality: Municipality) -> None:
     if municipality.validation != Municipality.PENDING:
         raise ValueError("Only pending municipalities can be rejected")
-    municipality.delete()
+    try:
+        municipality.delete()
+    except ProtectedError as error:
+        message = f"{municipality.name} has emergencies and cannot be rejected."
+        raise ValueError(message) from error
