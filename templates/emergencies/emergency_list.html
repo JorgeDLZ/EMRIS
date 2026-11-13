@@ -35,7 +35,7 @@
   {% endif %}
   <table>
     <thead>
-      <tr><th>Date</th><th>Type</th><th>Municipality</th><th>Status</th><th></th></tr>
+      <tr><th>Date</th><th>Type</th><th>Municipality</th><th>Status</th><th>Priority</th><th></th></tr>
     </thead>
     <tbody>
       {% for item in page %}
@@ -44,10 +44,11 @@
           <td>{{ item.emergency_type.name }}</td>
           <td>{{ item.municipality.name }} ({{ item.municipality.department.name }})</td>
           <td>{{ item.get_status_display }}</td>
+          <td>{% if item.priority is not None %}{% widthratio item.priority 1 100 %} %{% else %}—{% endif %}</td>
           <td><a href="{% url 'emergencies:emergency_detail' item.pk %}">View</a></td>
         </tr>
       {% empty %}
-        <tr><td colspan="5">No emergencies found.</td></tr>
+        <tr><td colspan="6">No emergencies found.</td></tr>
       {% endfor %}
     </tbody>
   </table>

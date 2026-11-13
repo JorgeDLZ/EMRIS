@@ -74,6 +74,8 @@
     {% if can_edit %}<p><a href="{% url 'emergencies:impact_edit' emergency.pk %}">Record impact</a></p>{% endif %}
   </section>
 
+  {% include "intelligence/_emergency_panel.html" %}
+
   <section class="card">
     <h2>Action plan</h2>
     {% if plan %}

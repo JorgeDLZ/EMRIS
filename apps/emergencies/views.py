@@ -2,18 +2,20 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Case, F, IntegerField, OuterRef, Subquery, Value, When
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import role_required
 from apps.accounts.roles import ADMINISTRATOR, ALL_ROLES, EDIT_ROLES, RISK_MANAGER
-from apps.intelligence.services import predict_on_save, predict_profile
+from apps.intelligence.models import IMPACT, MUNICIPAL_RISK, PROFILES, Prediction
+from apps.intelligence.services import latest_predictions, predict_on_save, predict_profile
 from apps.plans.models import DONE
 from apps.seismic.services import clear_link, confirm_link, suggest_link
 from ml.text import normalize_name
 
 from .forms import EmergencyForm, EmergencyTypeForm, ImpactForm
-from .models import STATUS_CHOICES, Emergency, EmergencyType, Impact
+from .models import CLOSED, STATUS_CHOICES, Emergency, EmergencyType, Impact
 from .policies import (
     allowed_statuses,
     can_edit_emergency,
@@ -26,6 +28,44 @@ from .policies import (
 from .workflow import LABELS, WorkflowError, add_note, change_status, create_emergency, save_impact
 
 PAGE_SIZE = 25
+MAX_LOGISTIC_FACTORS = 3
+
+
+def _impact_factors(output):
+    factors = [factor for factor in output.get("factors", []) if factor["weight"] != 0]
+    if output.get("kind") == "logistic_regression":
+        factors.sort(key=lambda factor: abs(factor["weight"]), reverse=True)
+        return [
+            {**factor, "raises": factor["weight"] > 0} for factor in factors[:MAX_LOGISTIC_FACTORS]
+        ]
+    factors = [factor for factor in factors if factor["weight"] > 0]
+    factors.sort(key=lambda factor: factor["weight"], reverse=True)
+    return factors
+
+
+def _intelligence_panel(emergency, has_impact):
+    predictions = latest_predictions(emergency)
+    panel = {"has_impact": has_impact}
+    impact = predictions.get(IMPACT)
+    if impact is not None:
+        panel["impact"] = {
+            "percent": round(impact.output["probability"] * 100),
+            "is_high_impact": impact.output["is_high_impact"],
+            "factors": _impact_factors(impact.output),
+            "is_directional": impact.output.get("kind") == "logistic_regression",
+            "version": impact.model_version,
+        }
+    profile = predictions.get(PROFILES)
+    if profile is not None:
+        panel["profile"] = {"name": profile.output["profile"], "version": profile.model_version}
+    risk = predictions.get(MUNICIPAL_RISK)
+    if risk is not None:
+        panel["risk"] = {
+            "level": risk.output["level"],
+            "k": risk.output["k"],
+            "version": risk.model_version,
+        }
+    return panel
 
 
 def _to_minute(moment):
@@ -90,6 +130,18 @@ def emergency_list(request):
     if query:
         emergencies = emergencies.filter(municipality__name_key__icontains=normalize_name(query))
 
+    latest_score = (
+        Prediction.objects.filter(emergency=OuterRef("pk"), component=IMPACT)
+        .order_by("-created_at", "-pk")
+        .values("score")[:1]
+    )
+    emergencies = emergencies.annotate(
+        priority=Subquery(latest_score),
+        closed_rank=Case(
+            When(status=CLOSED, then=Value(1)), default=Value(0), output_field=IntegerField()
+        ),
+    ).order_by("closed_rank", F("priority").desc(nulls_last=True), "-occurred_at", "-pk")
+
     page = Paginator(emergencies, PAGE_SIZE).get_page(request.GET.get("page"))
     return render(
         request,
@@ -137,6 +189,7 @@ def emergency_detail(request, pk):
             for action in plan.actions.select_related("owner")
         ]
         assignments = plan.assignments.select_related("resource")
+    impact = Impact.objects.filter(emergency=emergency).first()
     can_edit = can_edit_emergency(user, emergency)
     suggestion = None
     if can_edit and emergency.is_earthquake and emergency.seismic_event is None:
@@ -147,7 +200,8 @@ def emergency_detail(request, pk):
         {
             "emergency": emergency,
             "suggestion": suggestion,
-            "impact": Impact.objects.filter(emergency=emergency).first(),
+            "impact": impact,
+            "panel": _intelligence_panel(emergency, impact is not None),
             "log": log,
             "plan": plan,
             "plan_rows": plan_rows,

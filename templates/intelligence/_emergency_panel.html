@@ -1,0 +1,35 @@
+<section class="card">
+  <h2>Intelligence</h2>
+  <h3>Impact</h3>
+  {% if panel.impact %}
+    <p>Estimated high-impact probability: {{ panel.impact.percent }} %</p>
+    <p>{% if panel.impact.is_high_impact %}High impact{% else %}Not high impact{% endif %}</p>
+    {% if panel.impact.factors %}
+      <p>{% if panel.impact.is_directional %}Main factors:{% else %}Most influential factors in the model:{% endif %}</p>
+      <ul>
+        {% for factor in panel.impact.factors %}
+          <li>{{ factor.feature }}: {{ factor.value }}{% if panel.impact.is_directional %} ({% if factor.raises %}raises{% else %}lowers{% endif %}){% endif %}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <p>{{ panel.impact.version }}</p>
+  {% else %}
+    <p>Prediction unavailable</p>
+  {% endif %}
+  <h3>Profile</h3>
+  {% if panel.profile %}
+    <p>{{ panel.profile.name }}</p>
+    <p>{{ panel.profile.version }}</p>
+  {% elif not panel.has_impact %}
+    <p>Profile pending</p>
+  {% else %}
+    <p>Prediction unavailable</p>
+  {% endif %}
+  <h3>Municipal risk</h3>
+  {% if panel.risk %}
+    <p>{% if panel.risk.level is None %}Insufficient history{% else %}Risk level {{ panel.risk.level }} of {{ panel.risk.k }}{% endif %}</p>
+    <p>{{ panel.risk.version }}</p>
+  {% else %}
+    <p>Prediction unavailable</p>
+  {% endif %}
+</section>
