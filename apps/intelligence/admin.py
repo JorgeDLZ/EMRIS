@@ -1,0 +1,33 @@
+from django.contrib import admin
+
+from .models import ModelVersion, Prediction, TrainingRun
+
+
+class ReadOnlyAdmin(admin.ModelAdmin):
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(ModelVersion)
+class ModelVersionAdmin(ReadOnlyAdmin):
+    list_display = ("component", "version", "primary_metric", "score", "is_active", "trained_at")
+    list_filter = ("component", "is_active")
+    exclude = ("artifact",)
+
+
+@admin.register(TrainingRun)
+class TrainingRunAdmin(ReadOnlyAdmin):
+    list_display = ("component", "status", "started_at", "finished_at", "activated")
+    list_filter = ("component", "status")
+
+
+@admin.register(Prediction)
+class PredictionAdmin(ReadOnlyAdmin):
+    list_display = ("emergency", "component", "model_version", "score", "created_at")
+    list_filter = ("component",)

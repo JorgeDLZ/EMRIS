@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "apps.plans",
     "apps.history",
     "apps.seismic",
+    "apps.intelligence",
 ]
 
 MIDDLEWARE = [
@@ -109,6 +110,8 @@ AUTH_USER_MODEL = "accounts.User"
 LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "accounts:login"
+
+INTELLIGENCE_RUN_IN_BACKGROUND = True
 
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
