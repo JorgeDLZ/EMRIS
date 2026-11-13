@@ -200,11 +200,19 @@ def start_runs(actor):
         ]
 
 
-def _metadata(component, frame):
-    if component != IMPACT:
-        return {}
-    counts = frame["event_type"].value_counts()
-    return {"type_counts": {str(name): int(count) for name, count in counts.items()}}
+def _metadata(component, frame, result):
+    if component == IMPACT:
+        counts = frame["event_type"].value_counts()
+        return {"type_counts": {str(name): int(count) for name, count in counts.items()}}
+    if component == MUNICIPAL_RISK:
+        model = result.model
+        ranking = [
+            {"code": code, "level": level, "score": round(model.scores[code], 4)}
+            for code, level in model.levels.items()
+        ]
+        ranking.sort(key=lambda item: (-item["level"], -item["score"], item["code"]))
+        return {"ranking": ranking}
+    return {}
 
 
 def _message(version, decision):
@@ -265,7 +273,7 @@ def _execute(run, frame, seismic):
         )
         if current_id != active_id:
             decision = GateDecision(False, result.score, None, ACTIVE_CHANGED)
-        version = save_version(component, result, run.triggered_by, _metadata(component, frame))
+        version = save_version(component, result, run.triggered_by, _metadata(component, frame, result))
         if decision.activate:
             activate_version(version)
         _finish(run, TrainingRun.SUCCEEDED, _message(version, decision), version, decision.activate)
@@ -304,7 +312,7 @@ def train_initial(actor=None):
         with transaction.atomic():
             for component in COMPONENTS:
                 result = train_component(component, frame, seismic)
-                version = save_version(component, result, actor, _metadata(component, frame))
+                version = save_version(component, result, actor, _metadata(component, frame, result))
                 activate_version(version)
                 versions.append(version)
         return versions

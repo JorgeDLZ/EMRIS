@@ -55,6 +55,30 @@ def test_train_initial_activates_all_four(db, synthetic):
     assert impact.trained_on["rows"] == 600
 
 
+def assert_ranking_matches(version):
+    ranking = version.metadata["ranking"]
+    model = load_model(bytes(version.artifact))
+    assert len(ranking) == len(model.levels)
+    assert all(set(item) == {"code", "level", "score"} for item in ranking)
+    assert ranking[0]["level"] == max(model.levels.values())
+    levels = [item["level"] for item in ranking]
+    assert levels == sorted(levels, reverse=True)
+    assert {item["code"]: item["level"] for item in ranking} == model.levels
+
+
+def test_train_initial_stores_risk_ranking(db, synthetic):
+    train_initial()
+    assert_ranking_matches(active("municipal_risk"))
+
+
+def test_retrain_stores_risk_ranking(db, synthetic):
+    train_initial()
+    runs = retrain()
+    candidate = runs["municipal_risk"].candidate_version
+    assert candidate.version == 2
+    assert_ranking_matches(candidate)
+
+
 def test_train_initial_refuses_when_versions_exist(db, synthetic):
     train_initial()
     with pytest.raises(ValueError, match="Models already exist; use retrain."):
