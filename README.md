@@ -17,6 +17,7 @@ EMRIS (Emergency Management & Resource Information System) is a web application 
 - Action plans (one per emergency): operators draft them and administrators and risk managers approve them; each plan has actions with owners, due dates and statuses
 - Resource catalog with stock; the resources assigned to an emergency are freed when it closes
 - Earthquake link to the official SGC event: suggested on the emergency page and confirmed by the user; magnitude and depth are entered manually when there is no match
+- Intelligence in the application: estimated high-impact probability, emergency profile and municipal risk level on each emergency, a list that puts open emergencies first by estimated probability (those without an estimate last), then closed ones, suggested action plans from similar past cases, and an administrator page to manage and retrain the models
 - Health check endpoint at `/health/`
 - Deployment on Render with a Supabase PostgreSQL database
 
@@ -33,7 +34,7 @@ Users without a role wait for an administrator to assign one.
 
 ## Machine learning
 
-Four components, trained on the 2025 UNGRD history. The impact estimator and similar emergencies are evaluated with a time-based split: train on January–September, test on October–December. Emergency profiles and municipal risk are fitted and scored on the whole year. The components live in the `ml/` package, which has no Django dependency, and are not yet connected to the web application.
+Four components, evaluated offline on the 2025 UNGRD history. The impact estimator and similar emergencies are evaluated with a time-based split: train on January–September, test on October–December. Emergency profiles and municipal risk are fitted and scored on the whole year. The components live in the `ml/` package, which has no Django dependency.
 
 | Component | Technique | Evaluation |
 |---|---|---|
@@ -41,6 +42,30 @@ Four components, trained on the 2025 UNGRD history. The impact estimator and sim
 | Emergency profiles | K-means on log-scaled impact variables; emergencies with no recorded impact are labeled separately. | K = 3 chosen by silhouette (0.51), stable across seeds (ARI 0.98): "Minor impact", "Families affected and people affected", "Injuries and deaths". |
 | Similar emergencies and suggested plan | k-nearest neighbors (k = 5) on type, place, month and impact. Suggested actions are those present in at least 2 of the 5 neighbors. | Precision@5 (same type and impact level): 0.94 with impact data, 0.78 without. Baseline, random neighbors of the same type: 0.75. |
 | Municipal risk | Hierarchical agglomerative clustering (Ward) of municipalities with at least 3 emergencies, using emergency count, share of the three main types, share of high impact, mean impact and shallow seismic activity (M ≥ 4, depth < 70 km, within 50 km, from the SGC catalog). | K = 3 chosen by silhouette (0.21) and dendrogram, stability ARI 0.73. 620 municipalities ranked, 319 with insufficient history. Deep earthquakes of the Bucaramanga nest are excluded, so they do not raise Santander's level. |
+
+### In the application
+
+The four components run inside the application. They are trained from the database and stored as versioned models in the database.
+
+- **Emergency page, "Intelligence" block:** the estimated high-impact probability with its main factors, the emergency profile ("Profile pending" until the impact is recorded) and the municipal risk level ("Insufficient history" when the municipality has too little).
+- **Emergency list:** open emergencies by estimated probability, those without an estimate last, followed by closed emergencies.
+- **Action plan page:** "Suggest plan" shows the 5 most similar past cases and the suggested actions, which can be added to the plan with one click.
+- **Models page (`/intelligence/`, administrators):** active versions and metrics, version history with Activate (rollback), recent training runs and the Retrain button.
+
+Retraining runs in the background and trains the four components from the historical records plus the closed emergencies with a recorded impact. A new version is activated only if it passes the gate:
+
+- The impact estimator and the emergency profiles activate only when the candidate is strictly better than the active model. The impact estimator is compared on the records dated after the active model's training period; it needs at least 50 of them, including at least one high-impact case, otherwise the active model stays.
+- Similar emergencies and municipal risk activate when the candidate is not worse.
+- A run still running after 30 minutes is marked failed.
+- Every version is kept, so any previous one can be reactivated.
+
+After `load_baseline` and `load_seismic`, train the first models once:
+
+```bash
+python manage.py train_initial
+```
+
+It refuses to run when models already exist. `python manage.py retrain` runs the same training synchronously, prints the decision for each component and exits with an error if a component fails.
 
 ## Notebooks
 
@@ -97,11 +122,13 @@ Load them after migrating, in this order:
 python manage.py migrate
 python manage.py load_baseline
 python manage.py load_seismic
+python manage.py train_initial
 ```
 
 - `load_baseline` loads the municipalities, the emergency type catalog and the cleaned UNGRD history.
 - `load_seismic` loads the seismicity catalog and links each event to a municipality, so it needs the municipalities from `load_baseline`.
-- Both commands are idempotent: running them again does not duplicate data.
+- `train_initial` trains and activates the first version of the four models from that data.
+- `load_baseline` and `load_seismic` are idempotent: running them again does not duplicate data.
 - These commands write to whatever database `DATABASE_URL` points at, including Supabase in production. The free Render service has no shell, so the first load is run from a local machine with `DATABASE_URL` set to the Supabase pooler URL.
 
 ## Running tests
