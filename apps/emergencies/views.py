@@ -7,6 +7,7 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import role_required
 from apps.accounts.roles import ADMINISTRATOR, ALL_ROLES, EDIT_ROLES, RISK_MANAGER
+from apps.intelligence.services import predict_on_save, predict_profile
 from apps.plans.models import DONE
 from apps.seismic.services import clear_link, confirm_link, suggest_link
 from ml.text import normalize_name
@@ -109,6 +110,7 @@ def emergency_create(request):
     form = EmergencyForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
         emergency = create_emergency(request.user, **form.cleaned_data)
+        predict_on_save(emergency)
         messages.success(request, "The emergency was reported.")
         return redirect("emergencies:emergency_detail", pk=emergency.pk)
     return render(request, "emergencies/emergency_form.html", {"form": form, "emergency": None})
@@ -185,6 +187,9 @@ def emergency_edit(request, pk):
     form = EmergencyForm(request.POST or None, instance=emergency, user=request.user)
     if request.method == "POST" and form.is_valid():
         _save_emergency_fields(request.user, emergency, form)
+        predict_on_save(
+            Emergency.objects.select_related("emergency_type", "municipality__department").get(pk=pk)
+        )
         messages.success(request, "The emergency was updated.")
         return redirect("emergencies:emergency_detail", pk=emergency.pk)
     return render(request, "emergencies/emergency_form.html", {"form": form, "emergency": emergency})
@@ -202,6 +207,7 @@ def impact_edit(request, pk):
         except WorkflowError as error:
             messages.error(request, str(error))
         else:
+            predict_profile(emergency)
             messages.success(request, "The impact was saved.")
         return redirect("emergencies:emergency_detail", pk=emergency.pk)
     return render(request, "emergencies/impact_form.html", {"form": form, "emergency": emergency})

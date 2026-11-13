@@ -19,6 +19,9 @@ from apps.emergencies.models import (
     StatusLog,
 )
 from apps.emergencies.workflow import change_status
+from apps.intelligence import services
+from apps.intelligence.models import PROFILES, Prediction
+from apps.intelligence.tests.test_services import activate_models, trained
 from apps.places.models import Department, Municipality
 from apps.plans.models import Action, ActionPlan
 
@@ -553,3 +556,58 @@ def test_status_post_on_closed_emergency(client, make_emergency):
     emergency.refresh_from_db()
     assert emergency.status == CLOSED
     assert not StatusLog.objects.filter(emergency=emergency).exists()
+
+
+@pytest.fixture
+def trained_models(db, trained):
+    services.clear_cache()
+    models = activate_models(trained)
+    yield models
+    services.clear_cache()
+
+
+def test_ml_error_does_not_block_save(client, medellin, flood, trained_models, monkeypatch):
+    def boom(self, frame):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("ml.impact.ImpactModel.probability", boom)
+    client.force_login(make_user("olga", OPERATOR))
+    response = client.post(reverse("emergencies:emergency_create"), form_data(medellin, flood))
+    assert response.status_code == 302
+    assert Emergency.objects.count() == 1
+
+
+def test_predictions_stored_on_create_and_edit(client, medellin, flood, trained_models):
+    client.force_login(make_user("olga", OPERATOR))
+    client.post(reverse("emergencies:emergency_create"), form_data(medellin, flood))
+    assert Prediction.objects.count() == 2
+    emergency = Emergency.objects.get()
+    client.post(
+        reverse("emergencies:emergency_edit", args=[emergency.pk]),
+        form_data(medellin, flood, site="New site"),
+    )
+    assert Prediction.objects.count() == 4
+
+
+def test_profile_predicted_after_impact_save(client, make_emergency, trained_models):
+    emergency = make_emergency()
+    client.force_login(make_user("olga", OPERATOR))
+    values = dict.fromkeys(
+        (
+            "deceased",
+            "injured",
+            "missing",
+            "people_affected",
+            "families_affected",
+            "homes_destroyed",
+            "homes_damaged",
+            "roads_damaged",
+            "bridges_damaged",
+            "hectares",
+        ),
+        0,
+    )
+    values["people_affected"] = 40
+    response = client.post(reverse("emergencies:impact_edit", args=[emergency.pk]), values)
+    assert response.status_code == 302
+    assert Prediction.objects.filter(emergency=emergency, component=PROFILES).count() == 1
