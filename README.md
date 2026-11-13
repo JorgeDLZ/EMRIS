@@ -18,6 +18,8 @@ EMRIS (Emergency Management & Resource Information System) is a web application 
 - Resource catalog with stock; the resources assigned to an emergency are freed when it closes
 - Earthquake link to the official SGC event: suggested on the emergency page and confirmed by the user; magnitude and depth are entered manually when there is no match
 - Intelligence in the application: estimated high-impact probability, emergency profile and municipal risk level on each emergency, a list that puts open emergencies first by estimated probability (those without an estimate last), then closed ones, suggested action plans from similar past cases, and an administrator page to manage and retrain the models
+- Dashboard with active emergency summaries, the municipal risk ranking and recent seismic activity, plus a browser for the UNGRD history
+- CSV reports: emergencies, municipal risk ranking and UNGRD history
 - Health check endpoint at `/health/`
 - Deployment on Render with a Supabase PostgreSQL database
 
@@ -66,6 +68,16 @@ python manage.py train_initial
 ```
 
 It refuses to run when models already exist. `python manage.py retrain` runs the same training synchronously, prints the decision for each component and exits with an error if a component fails.
+
+## Dashboard and reports
+
+- **Dashboard (`/dashboard/`, every role):** active emergencies with the total, the closed count, and breakdowns by status, by type, top 10 municipalities and by profile ("Profile pending" when there is none). It also shows the top 10 of the municipal risk ranking, hidden from action owners, and a seismic activity panel: the 30 days ending at the latest event of the SGC catalog, with events of M ≥ 4.0, largest first, up to 20. Action owners see only their own emergencies.
+- **Municipal risk ranking (`/dashboard/risk/`, administrators, risk managers and operators):** municipalities ordered by risk level, most severe first ("Risk level n of k"), 50 per page, filtered by department. Municipalities with insufficient history are counted, not listed. The ranking is stored with each model version at training, so a model version trained before the ranking was stored shows "The ranking appears after the next retrain." until an administrator retrains once.
+- **UNGRD history (`/history/`, every role):** browser of the historical emergencies, filtered by type, department, municipality, dates and high impact. Each record has a detail page with its impact, comments and actions.
+- **CSV reports (UTF-8 with BOM, so Excel opens them correctly):**
+  - `/dashboard/emergencies.csv`: the emergencies visible to the user.
+  - `/dashboard/risk.csv`: the municipal risk ranking (not for action owners).
+  - `/history/export.csv`: the UNGRD history, with the same filters as the browser.
 
 ## Notebooks
 
