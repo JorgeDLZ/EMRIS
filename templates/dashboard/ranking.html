@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}EMRIS — Municipal risk ranking{% endblock %}
+
+{% block content %}
+  <h1>Municipal risk ranking</h1>
+  {% include "_messages.html" %}
+
+  {% if ranking.available %}
+    <p>Model: {{ ranking.version }}</p>
+    {% if ranking.insufficient_history %}
+      <p>{{ ranking.insufficient_history }} municipalities with insufficient history are not ranked.</p>
+    {% endif %}
+
+    <form method="get" class="card">
+      <p>
+        <label for="department">Department</label>
+        <select name="department" id="department">
+          <option value="">All departments</option>
+          {% for item in departments %}
+            <option value="{{ item.code }}"{% if department == item.code %} selected{% endif %}>{{ item.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit">Filter</button>
+      </p>
+    </form>
+
+    <table>
+      <thead>
+        <tr><th>Position</th><th>Municipality</th><th>Department</th><th>Risk level</th></tr>
+      </thead>
+      <tbody>
+        {% for row in page %}
+          <tr>
+            <td>{{ row.position }}</td>
+            <td>{% if row.municipality %}{{ row.municipality.name }}{% else %}{{ row.code }}{% endif %}</td>
+            <td>{{ row.municipality.department.name }}</td>
+            <td>Risk level {{ row.level }} of {{ row.k }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if page.has_other_pages %}
+      <p>
+        {% if page.has_previous %}<a href="?department={{ department|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
+        Page {{ page.number }} of {{ page.paginator.num_pages }}
+        {% if page.has_next %}<a href="?department={{ department|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
+      </p>
+    {% endif %}
+  {% elif ranking.version %}
+    <p>The ranking appears after the next retrain.</p>
+  {% else %}
+    <p>No active municipal risk model.</p>
+  {% endif %}
+{% endblock %}

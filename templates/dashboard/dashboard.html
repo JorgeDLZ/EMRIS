@@ -61,4 +61,32 @@
       <p>No active emergencies.</p>
     {% endif %}
   </section>
+
+  {% if show_ranking %}
+    <section>
+      <h2>Municipal risk ranking</h2>
+      {% if ranking.available %}
+        <table>
+          <thead>
+            <tr><th>Position</th><th>Municipality</th><th>Department</th><th>Risk level</th></tr>
+          </thead>
+          <tbody>
+            {% for row in top_rows %}
+              <tr>
+                <td>{{ row.position }}</td>
+                <td>{% if row.municipality %}{{ row.municipality.name }}{% else %}{{ row.code }}{% endif %}</td>
+                <td>{{ row.municipality.department.name }}</td>
+                <td>Risk level {{ row.level }} of {{ row.k }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <p><a href="{% url 'dashboard:ranking' %}">See the full ranking</a></p>
+      {% elif ranking.version %}
+        <p>The ranking appears after the next retrain.</p>
+      {% else %}
+        <p>No active municipal risk model.</p>
+      {% endif %}
+    </section>
+  {% endif %}
 {% endblock %}
