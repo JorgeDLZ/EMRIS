@@ -1,6 +1,10 @@
+import subprocess
+import sys
 from datetime import timedelta
+from pathlib import Path
 
 import pandas as pd
+import sklearn
 
 import pytest
 from django.utils import timezone
@@ -318,3 +322,50 @@ def test_candidate_stays_inactive_when_active_changed_during_training(db, synthe
     assert run.message == "v3 kept inactive: Active model changed during training"
     assert active("similarity").version == 2
     assert not run.activated
+
+
+@pytest.fixture
+def recorded_working_memory(monkeypatch):
+    seen = []
+    real = training.train_component
+
+    def record(component, frame, seismic):
+        seen.append(sklearn.get_config()["working_memory"])
+        return real(component, frame, seismic)
+
+    monkeypatch.setattr(training, "train_component", record)
+    return seen
+
+
+def test_execute_runs_limits_scikit_learn_working_memory(db, synthetic, recorded_working_memory):
+    before = sklearn.get_config()["working_memory"]
+    execute_runs(start_runs(None))
+    assert len(recorded_working_memory) == len(COMPONENTS)
+    assert set(recorded_working_memory) == {training.TRAINING_WORKING_MEMORY_MB} == {64}
+    assert sklearn.get_config()["working_memory"] == before
+
+
+def test_train_initial_limits_scikit_learn_working_memory(db, synthetic, recorded_working_memory):
+    before = sklearn.get_config()["working_memory"]
+    train_initial()
+    assert len(recorded_working_memory) == len(COMPONENTS)
+    assert set(recorded_working_memory) == {64}
+    assert sklearn.get_config()["working_memory"] == before
+
+
+def test_importing_training_does_not_load_pandas_or_sklearn():
+    script = (
+        "import os, sys, django\n"
+        "os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')\n"
+        "django.setup()\n"
+        "import apps.intelligence.training\n"
+        "loaded = [name for name in ('pandas', 'sklearn') if name in sys.modules]\n"
+        "sys.exit(','.join(loaded) or 0)\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=Path(__file__).resolve().parents[3],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr

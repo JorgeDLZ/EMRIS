@@ -1,4 +1,5 @@
 import logging
+from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import timedelta
 
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 RUN_TIMEOUT = timedelta(minutes=30)
 GATE_MIN_ROWS = 50
+TRAINING_WORKING_MEMORY_MB = 64
 TIES_ACTIVATE = {SIMILARITY, MUNICIPAL_RISK}
 
 NO_ACTIVE_MODEL = "No active model"
@@ -41,6 +43,14 @@ class GateDecision:
     candidate_score: float
     active_score: float | None
     reason: str
+
+
+@contextmanager
+def _bounded_training_memory():
+    from sklearn import config_context
+
+    with config_context(working_memory=TRAINING_WORKING_MEMORY_MB):
+        yield
 
 
 def train_component(component, frame, seismic):
@@ -254,32 +264,34 @@ def _execute(run, frame, seismic):
 
 
 def execute_runs(runs):
-    try:
-        frame = build_training_frame()
-        seismic = seismic_inputs()
-    except Exception as exc:
-        logger.exception("Training inputs could not be built")
-        for run in runs:
-            _finish(run, TrainingRun.FAILED, str(exc))
-        return
-    for run in runs:
+    with _bounded_training_memory():
         try:
-            _execute(run, frame, seismic)
+            frame = build_training_frame()
+            seismic = seismic_inputs()
         except Exception as exc:
-            logger.exception("Training %s failed", run.component)
-            _finish(run, TrainingRun.FAILED, str(exc))
+            logger.exception("Training inputs could not be built")
+            for run in runs:
+                _finish(run, TrainingRun.FAILED, str(exc))
+            return
+        for run in runs:
+            try:
+                _execute(run, frame, seismic)
+            except Exception as exc:
+                logger.exception("Training %s failed", run.component)
+                _finish(run, TrainingRun.FAILED, str(exc))
 
 
 def train_initial(actor=None):
     if ModelVersion.objects.exists():
         raise ValueError("Models already exist; use retrain.")
-    frame = build_training_frame()
-    seismic = seismic_inputs()
-    versions = []
-    with transaction.atomic():
-        for component in COMPONENTS:
-            result = train_component(component, frame, seismic)
-            version = save_version(component, result, actor, _metadata(component, frame))
-            activate_version(version)
-            versions.append(version)
-    return versions
+    with _bounded_training_memory():
+        frame = build_training_frame()
+        seismic = seismic_inputs()
+        versions = []
+        with transaction.atomic():
+            for component in COMPONENTS:
+                result = train_component(component, frame, seismic)
+                version = save_version(component, result, actor, _metadata(component, frame))
+                activate_version(version)
+                versions.append(version)
+        return versions
