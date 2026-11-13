@@ -228,3 +228,28 @@ def test_download_links(client, world):
     html = client.get(reverse("dashboard:index")).content.decode()
     assert reverse("dashboard:export_emergencies") in html
     assert reverse("dashboard:export_ranking") not in html
+
+
+def test_csv_cells_starting_with_formula_characters_are_quoted(client, world):
+    formula = '=HYPERLINK("http://x","y")'
+    municipality = Municipality.objects.create(
+        department=world["department"], code="11002", name=formula
+    )
+    emergency = world["build"](municipality=municipality)
+    Impact.objects.create(emergency=emergency, deceased=2)
+    client.force_login(make_user("ana", ADMINISTRATOR))
+    rows = parse(client.get(reverse("dashboard:export_emergencies")))
+    assert rows[0] == EMERGENCY_HEADER
+    row = next(row for row in rows[1:] if row[0] == str(emergency.pk))
+    assert row[3] == "'" + formula
+    assert row[9] == "2"
+
+
+@pytest.mark.parametrize("prefix", ["=", "+", "-", "@", "\t", "\r"])
+def test_csv_response_quotes_every_formula_prefix(prefix):
+    from apps.dashboard.exports import csv_response
+
+    response = csv_response("x.csv", ["a", "-b"], [[prefix + "x", 5, -1.5, "plain"]])
+    rows = parse(response)
+    assert rows[0] == ["a", "-b"]
+    assert rows[1] == ["'" + prefix + "x", "5", "-1.5", "plain"]

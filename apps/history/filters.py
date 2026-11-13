@@ -14,14 +14,18 @@ def _iso_date(value):
         return ""
 
 
+def _param(params, key):
+    return params.get(key, "").replace("\x00", "").strip()
+
+
 def filter_records(params):
     cleaned = {
-        "type": params.get("type", "").strip(),
-        "department": params.get("department", "").strip(),
-        "q": params.get("q", "").strip(),
-        "from": _iso_date(params.get("from", "").strip()),
-        "to": _iso_date(params.get("to", "").strip()),
-        "high": params.get("high", "").strip(),
+        "type": _param(params, "type"),
+        "department": _param(params, "department"),
+        "q": _param(params, "q"),
+        "from": _iso_date(_param(params, "from")),
+        "to": _iso_date(_param(params, "to")),
+        "high": _param(params, "high"),
     }
     if not (cleaned["type"].isascii() and cleaned["type"].isdigit() and len(cleaned["type"]) <= 9):
         cleaned["type"] = ""

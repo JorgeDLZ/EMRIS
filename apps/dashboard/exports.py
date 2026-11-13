@@ -30,6 +30,13 @@ HISTORY_HEADER = [
 ]
 INSUFFICIENT_HISTORY = "Insufficient history"
 DATE_TIME_FORMAT = "%Y-%m-%d %H:%M"
+FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _guard_formula(cell):
+    if isinstance(cell, str) and cell.startswith(FORMULA_PREFIXES):
+        return "'" + cell
+    return cell
 
 
 def csv_response(filename: str, header: list[str], rows: Iterable[list]) -> HttpResponse:
@@ -38,7 +45,8 @@ def csv_response(filename: str, header: list[str], rows: Iterable[list]) -> Http
     response.write("\ufeff")
     writer = csv.writer(response)
     writer.writerow(header)
-    writer.writerows(rows)
+    for row in rows:
+        writer.writerow([_guard_formula(cell) for cell in row])
     return response
 
 

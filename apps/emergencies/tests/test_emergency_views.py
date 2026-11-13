@@ -611,3 +611,22 @@ def test_profile_predicted_after_impact_save(client, make_emergency, trained_mod
     response = client.post(reverse("emergencies:impact_edit", args=[emergency.pk]), values)
     assert response.status_code == 302
     assert Prediction.objects.filter(emergency=emergency, component=PROFILES).count() == 1
+
+
+def test_list_drops_nul_bytes_from_search(client, db):
+    client.force_login(make_user("rita", RISK_MANAGER))
+    url = reverse("emergencies:emergency_list")
+    response = client.get(url + "?q=%00")
+    assert response.status_code == 200
+    assert response.context["query"] == ""
+    response = client.get(url + "?q=med%00ellin")
+    assert response.status_code == 200
+    assert response.context["query"] == "medellin"
+
+
+@pytest.mark.parametrize("value", ["²", "99999999999"])
+def test_list_ignores_unusable_type_values(client, db, value):
+    client.force_login(make_user("rita", RISK_MANAGER))
+    response = client.get(reverse("emergencies:emergency_list"), {"type": value})
+    assert response.status_code == 200
+    assert response.context["type_id"] == ""

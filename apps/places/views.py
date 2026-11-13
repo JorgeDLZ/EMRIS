@@ -25,12 +25,12 @@ def municipality_list(request):
     municipalities = Municipality.objects.visible_to(request.user).select_related("department")
 
     department = request.GET.get("department", "")
-    if department.isdigit():
+    if department.isascii() and department.isdigit() and len(department) <= 9:
         municipalities = municipalities.filter(department_id=int(department))
     else:
         department = ""
 
-    query = request.GET.get("q", "").strip()
+    query = request.GET.get("q", "").replace("\x00", "").strip()
     if query:
         municipalities = municipalities.filter(name_key__icontains=normalize_name(query))
 

@@ -191,3 +191,23 @@ def test_detail_escapes_comments(logged, world):
     assert "&lt;script&gt;" in html
     assert "<br>" in html
     assert "<script>" not in html
+
+
+def test_nul_bytes_are_removed_from_filters(logged, records):
+    url = reverse("history:record_list")
+    response = logged.get(url, {"q": "\x00", "department": "a\x00", "type": "\x00", "from": "\x00", "high": "\x00"})
+    assert response.status_code == 200
+    assert response.context["cleaned"] == {
+        "type": "", "department": "", "q": "", "from": "", "to": "", "high": "",
+    }
+    response = logged.get(url, {"department": "05\x00", "q": "medel\x00lin", "type": f"{records[0].emergency_type_id}\x00"})
+    assert response.status_code == 200
+    assert response.context["cleaned"]["department"] == "05"
+    assert response.context["cleaned"]["q"] == "medellin"
+    assert "\x00" not in "".join(response.context["cleaned"].values())
+
+
+def test_non_ascii_digit_type_is_ignored(logged, records):
+    response = logged.get(reverse("history:record_list"), {"type": "²"})
+    assert response.status_code == 200
+    assert response.context["cleaned"]["type"] == ""

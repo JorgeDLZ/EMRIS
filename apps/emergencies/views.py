@@ -123,12 +123,12 @@ def emergency_list(request):
         status = ""
 
     type_id = request.GET.get("type", "")
-    if type_id.isdigit():
+    if type_id.isascii() and type_id.isdigit() and len(type_id) <= 9:
         emergencies = emergencies.filter(emergency_type_id=int(type_id))
     else:
         type_id = ""
 
-    query = request.GET.get("q", "").strip()
+    query = request.GET.get("q", "").replace("\x00", "").strip()
     if query:
         emergencies = emergencies.filter(municipality__name_key__icontains=normalize_name(query))
 

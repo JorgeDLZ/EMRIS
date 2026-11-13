@@ -196,3 +196,23 @@ def test_operator_similar_warning_hides_other_operators_pending(client, antioqui
     )
     assert response.status_code == 302
     assert Municipality.objects.filter(name="Nueva Vila").exists()
+
+
+def test_list_drops_nul_bytes_from_search(client, medellin):
+    client.force_login(make_user("rita", RISK_MANAGER))
+    url = reverse("places:municipality_list")
+    response = client.get(url + "?q=%00")
+    assert response.status_code == 200
+    assert response.context["query"] == ""
+    response = client.get(url + "?q=med%00ellin")
+    assert response.status_code == 200
+    assert response.context["query"] == "medellin"
+    assert [m.pk for m in response.context["page"]] == [medellin.pk]
+
+
+@pytest.mark.parametrize("value", ["²", "99999999999"])
+def test_list_ignores_unusable_department_values(client, medellin, value):
+    client.force_login(make_user("rita", RISK_MANAGER))
+    response = client.get(reverse("places:municipality_list"), {"department": value})
+    assert response.status_code == 200
+    assert response.context["department"] == ""
