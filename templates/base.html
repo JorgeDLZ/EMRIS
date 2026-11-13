@@ -18,6 +18,7 @@
         {% if user.can_manage_catalogs %}<a href="{% url 'emergencies:type_list' %}">Emergency types</a>{% endif %}
         {% if user.can_manage_resources %}<a href="{% url 'plans:resource_list' %}">Resources</a>{% endif %}
         {% if user.is_administrator %}<a href="{% url 'accounts:user_list' %}">Users</a>{% endif %}
+        {% if user.is_administrator %}<a href="{% url 'intelligence:model_list' %}">Models</a>{% endif %}
         <span class="user">{{ user.username }}{% if user.role_label %} · {{ user.role_label }}{% endif %}</span>
         <form method="post" action="{% url 'accounts:logout' %}">
           {% csrf_token %}

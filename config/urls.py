@@ -10,5 +10,6 @@ urlpatterns = [
     path("places/", include("apps.places.urls")),
     path("emergencies/", include("apps.emergencies.urls")),
     path("plans/", include("apps.plans.urls")),
+    path("intelligence/", include("apps.intelligence.urls")),
     path("", home, name="home"),
 ]
