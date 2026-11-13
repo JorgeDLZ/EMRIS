@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404, render
 
 from apps.accounts.permissions import role_required
 from apps.accounts.roles import ALL_ROLES
+from apps.dashboard.exports import HISTORY_HEADER, csv_response, history_rows
 from apps.emergencies.models import EmergencyType
 from apps.places.models import Department
 from apps.plans.models import ACTION_CODE_CHOICES
@@ -26,6 +27,12 @@ def record_list(request):
             "departments": Department.objects.order_by("name"),
         },
     )
+
+
+@role_required(*ALL_ROLES)
+def export(request):
+    records, _ = filter_records(request.GET)
+    return csv_response("ungrd_history.csv", HISTORY_HEADER, history_rows(records))
 
 
 @role_required(*ALL_ROLES)

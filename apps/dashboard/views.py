@@ -5,6 +5,13 @@ from apps.accounts.permissions import has_role, role_required
 from apps.accounts.roles import ALL_ROLES, EDIT_ROLES
 from apps.emergencies.policies import visible_emergencies
 
+from .exports import (
+    EMERGENCY_HEADER,
+    RANKING_HEADER,
+    csv_response,
+    emergency_rows,
+    ranking_rows,
+)
 from .ranking import departments, in_department, risk_ranking
 from .summary import emergency_summary, seismic_activity
 
@@ -43,3 +50,15 @@ def ranking(request):
             "departments": departments(full.rows),
         },
     )
+
+
+@role_required(*ALL_ROLES)
+def export_emergencies(request):
+    rows = emergency_rows(visible_emergencies(request.user))
+    return csv_response("emergencies.csv", EMERGENCY_HEADER, rows)
+
+
+@role_required(*EDIT_ROLES)
+def export_ranking(request):
+    ranking_data = risk_ranking(request.GET.get("department", ""))
+    return csv_response("municipal_risk_ranking.csv", RANKING_HEADER, ranking_rows(ranking_data))

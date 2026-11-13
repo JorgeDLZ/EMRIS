@@ -25,6 +25,8 @@
       </p>
     </form>
 
+    <p><a href="{% url 'dashboard:export_ranking' %}{% if department %}?department={{ department|urlencode }}{% endif %}">Download CSV</a></p>
+
     <table>
       <thead>
         <tr><th>Position</th><th>Municipality</th><th>Department</th><th>Risk level</th></tr>
