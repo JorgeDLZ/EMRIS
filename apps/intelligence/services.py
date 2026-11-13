@@ -2,11 +2,12 @@ import logging
 
 from .artifacts import load_model
 from .frames import emergency_frame, municipality_id
-from .models import IMPACT, MUNICIPAL_RISK, PROFILES, SIMILARITY, ModelVersion, Prediction
+from .models import COMPONENTS, IMPACT, MUNICIPAL_RISK, PROFILES, SIMILARITY, ModelVersion, Prediction
 
 logger = logging.getLogger(__name__)
 
 MIN_TYPE_CASES = 3
+NOT_ENOUGH_HISTORY = "not_enough_history"
 
 _cache: dict[str, tuple[ModelVersion, object]] = {}
 
@@ -53,7 +54,8 @@ def _predict_impact(emergency):
     version, model = loaded
     type_name = emergency.emergency_type.name
     if version.metadata.get("type_counts", {}).get(type_name, 0) < MIN_TYPE_CASES:
-        logger.info("Impact estimate skipped: too few cases of %s", type_name)
+        logger.info("Impact estimate unavailable: too few cases of %s", type_name)
+        _store(emergency, version, {"probability": None, "reason": NOT_ENOUGH_HISTORY})
         return
     frame = emergency_frame(emergency)
     probability = float(model.probability(frame)[0])
@@ -128,6 +130,14 @@ def suggest_similar(emergency):
 
 def latest_predictions(emergency) -> dict[str, Prediction]:
     latest = {}
-    for prediction in Prediction.objects.filter(emergency=emergency).select_related("model_version"):
-        latest.setdefault(prediction.component, prediction)
+    for component in COMPONENTS:
+        prediction = (
+            Prediction.objects.filter(emergency=emergency, component=component)
+            .select_related("model_version")
+            .defer("model_version__artifact")
+            .order_by("-created_at", "-pk")
+            .first()
+        )
+        if prediction is not None:
+            latest[component] = prediction
     return latest

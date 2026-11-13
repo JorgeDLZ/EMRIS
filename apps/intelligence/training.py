@@ -3,7 +3,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import timedelta
 
-from django.db import connection, transaction
+from django.db import close_old_connections, connection, transaction
 from django.utils import timezone
 
 from apps.intelligence.artifacts import dump_model, library_versions, load_model
@@ -167,7 +167,11 @@ def save_version(component, result, actor, metadata=None):
 
 @transaction.atomic
 def activate_version(version):
-    list(ModelVersion.objects.select_for_update().filter(component=version.component))
+    list(
+        ModelVersion.objects.select_for_update()
+        .filter(component=version.component)
+        .values_list("pk", flat=True)
+    )
     ModelVersion.objects.filter(component=version.component, is_active=True).update(is_active=False)
     ModelVersion.objects.filter(pk=version.pk).update(is_active=True)
     version.is_active = True
@@ -249,7 +253,11 @@ def _execute(run, frame, seismic):
         current = TrainingRun.objects.select_for_update().get(pk=run.pk)
         if current.status != TrainingRun.RUNNING:
             return
-        list(ModelVersion.objects.select_for_update().filter(component=component))
+        list(
+            ModelVersion.objects.select_for_update()
+            .filter(component=component)
+            .values_list("pk", flat=True)
+        )
         current_id = (
             ModelVersion.objects.filter(component=component, is_active=True)
             .values_list("pk", flat=True)
@@ -271,14 +279,19 @@ def execute_runs(runs):
         except Exception as exc:
             logger.exception("Training inputs could not be built")
             for run in runs:
-                _finish(run, TrainingRun.FAILED, str(exc))
+                _finish(run, TrainingRun.FAILED, str(exc) or type(exc).__name__)
             return
         for run in runs:
+            close_old_connections()
             try:
                 _execute(run, frame, seismic)
             except Exception as exc:
                 logger.exception("Training %s failed", run.component)
-                _finish(run, TrainingRun.FAILED, str(exc))
+                close_old_connections()
+                try:
+                    _finish(run, TrainingRun.FAILED, str(exc) or type(exc).__name__)
+                except Exception:
+                    logger.exception("Training %s could not be marked as failed", run.component)
 
 
 def train_initial(actor=None):

@@ -7,6 +7,8 @@ import pandas as pd
 import sklearn
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from apps.intelligence import training
@@ -176,6 +178,69 @@ def test_activate_version_rolls_back(db, synthetic, monkeypatch):
     activate_version(ModelVersion.objects.get(component="similarity", version=1))
     assert active("similarity").version == 1
     assert not ModelVersion.objects.get(component="similarity", version=2).is_active
+
+
+def test_lock_queries_do_not_select_artifacts(db, synthetic):
+    train_initial()
+    version = ModelVersion.objects.get(component="similarity", version=1)
+    with CaptureQueriesContext(connection) as queries:
+        activate_version(version)
+    assert not any("artifact" in query["sql"] for query in queries)
+    with CaptureQueriesContext(connection) as queries:
+        retrain()
+    locks = [query["sql"] for query in queries if "FOR UPDATE" in query["sql"].upper()]
+    assert not any("artifact" in sql for sql in locks)
+
+
+def test_failed_bookkeeping_does_not_abort_remaining_runs(db, synthetic, monkeypatch):
+    train_initial()
+
+    def fail(frame):
+        raise RuntimeError("clustering failed")
+
+    monkeypatch.setattr("ml.profiles.train_profiles", fail)
+    real_finish = training._finish
+    calls = {"failed": 0}
+
+    def flaky_finish(run, status, message, *args, **kwargs):
+        if status == TrainingRun.FAILED and calls["failed"] == 0:
+            calls["failed"] += 1
+            raise RuntimeError("connection dropped")
+        return real_finish(run, status, message, *args, **kwargs)
+
+    monkeypatch.setattr(training, "_finish", flaky_finish)
+    runs = retrain()
+    assert calls["failed"] == 1
+    assert {runs[c].status for c in COMPONENTS if c != "profiles"} == {TrainingRun.SUCCEEDED}
+
+
+def test_connections_are_refreshed_around_each_run(db, synthetic, monkeypatch):
+    train_initial()
+    refreshed = []
+    monkeypatch.setattr(training, "close_old_connections", lambda: refreshed.append(1))
+    retrain()
+    assert len(refreshed) >= len(COMPONENTS)
+
+
+@pytest.mark.parametrize("raised", [KeyError(), RuntimeError()])
+def test_empty_failure_message_falls_back_to_class_name(db, synthetic, monkeypatch, raised):
+    train_initial()
+
+    def fail(frame):
+        raise raised
+
+    monkeypatch.setattr("ml.profiles.train_profiles", fail)
+    runs = retrain()
+    assert runs["profiles"].message == type(raised).__name__
+
+
+def test_empty_input_failure_message_falls_back_to_class_name(db, synthetic, monkeypatch):
+    def fail():
+        raise KeyError()
+
+    monkeypatch.setattr(training, "build_training_frame", fail)
+    execute_runs(start_runs(None))
+    assert {run.message for run in TrainingRun.objects.all()} == {"KeyError"}
 
 
 def test_unloadable_active_artifact_counts_as_no_active_model(db, synthetic):

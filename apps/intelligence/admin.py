@@ -20,6 +20,9 @@ class ModelVersionAdmin(ReadOnlyAdmin):
     list_filter = ("component", "is_active")
     exclude = ("artifact",)
 
+    def get_queryset(self, request):
+        return super().get_queryset(request).defer("artifact")
+
 
 @admin.register(TrainingRun)
 class TrainingRunAdmin(ReadOnlyAdmin):
@@ -31,3 +34,11 @@ class TrainingRunAdmin(ReadOnlyAdmin):
 class PredictionAdmin(ReadOnlyAdmin):
     list_display = ("emergency", "component", "model_version", "score", "created_at")
     list_filter = ("component",)
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("emergency", "model_version")
+            .defer("model_version__artifact")
+        )

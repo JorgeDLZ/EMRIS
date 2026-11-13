@@ -13,6 +13,8 @@
       </ul>
     {% endif %}
     <p>{{ panel.impact.version }}</p>
+  {% elif panel.impact_reason == "not_enough_history" %}
+    <p>Not enough history for this emergency type</p>
   {% else %}
     <p>Prediction unavailable</p>
   {% endif %}

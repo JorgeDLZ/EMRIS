@@ -4,6 +4,8 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from apps.emergencies.models import Emergency, EmergencyType
@@ -106,11 +108,14 @@ def test_impact_failure_does_not_stop_risk(db, trained, emergency, monkeypatch):
     assert list(Prediction.objects.values_list("component", flat=True)) == [MUNICIPAL_RISK]
 
 
-def test_rare_type_gets_no_impact_prediction(db, trained, emergency):
-    make_version(trained, IMPACT, {"type_counts": {"Flood": 2}})
+def test_rare_type_stores_not_enough_history_prediction(db, trained, emergency):
+    version = make_version(trained, IMPACT, {"type_counts": {"Flood": 2}})
     make_version(trained, MUNICIPAL_RISK)
     services.predict_on_save(emergency)
-    assert not Prediction.objects.filter(component=IMPACT).exists()
+    impact = Prediction.objects.get(component=IMPACT)
+    assert impact.model_version == version
+    assert impact.output == {"probability": None, "reason": "not_enough_history"}
+    assert impact.score is None
     assert Prediction.objects.filter(component=MUNICIPAL_RISK).exists()
 
 
@@ -169,6 +174,18 @@ def test_latest_predictions_returns_newest_per_component(db, trained, emergency)
     latest = services.latest_predictions(emergency)
     assert set(latest) == {PROFILES}
     assert latest[PROFILES].pk == Prediction.objects.order_by("-pk").first().pk
+
+
+def test_latest_predictions_does_not_select_artifacts(db, trained, emergency):
+    activate_models(trained, (PROFILES, MUNICIPAL_RISK))
+    services.predict_profile(emergency)
+    services.predict_profile(emergency)
+    services.predict_on_save(emergency)
+    with CaptureQueriesContext(connection) as queries:
+        latest = services.latest_predictions(emergency)
+    assert set(latest) == {PROFILES, MUNICIPAL_RISK}
+    assert latest[PROFILES].pk == Prediction.objects.filter(component=PROFILES).order_by("-pk").first().pk
+    assert not any("artifact" in query["sql"] for query in queries)
 
 
 @pytest.mark.parametrize("module", ["apps.intelligence.services", "apps.emergencies.views"])

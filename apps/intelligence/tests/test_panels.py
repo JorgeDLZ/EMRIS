@@ -194,3 +194,35 @@ def test_action_owner_sees_panel_only_on_own(client, db, make_emergency):
     assert own.status_code == 200
     assert "Risk level 1 of 3" in own.content.decode()
     assert client.get(reverse("emergencies:emergency_detail", args=[other.pk])).status_code == 404
+
+
+NOT_ENOUGH_HISTORY = {"probability": None, "reason": "not_enough_history"}
+
+
+def test_panel_replaces_old_estimate_with_not_enough_history(client, db, make_emergency):
+    emergency = make_emergency()
+    add_prediction(emergency, IMPACT, impact_output(0.63), score=0.63)
+    add_prediction(emergency, IMPACT, NOT_ENOUGH_HISTORY)
+    page = detail(client, emergency).content.decode()
+    assert "Not enough history for this emergency type" in page
+    assert "63 %" not in page
+    assert "Estimated high-impact probability" not in page
+
+
+def test_list_shows_dash_and_sorts_unknown_after_estimates(client, db, make_emergency):
+    now = timezone.now()
+    stale = make_emergency(occurred_at=now - timedelta(days=1))
+    low = make_emergency(occurred_at=now - timedelta(days=2))
+    add_prediction(stale, IMPACT, impact_output(0.95), score=0.95)
+    add_prediction(stale, IMPACT, NOT_ENOUGH_HISTORY)
+    add_prediction(low, IMPACT, impact_output(0.2), score=0.2)
+    client.force_login(make_user("ana", OPERATOR))
+    response = client.get(reverse("emergencies:emergency_list"))
+    assert list(response.context["page"].object_list) == [low, stale]
+    row = next(
+        r
+        for r in response.content.decode().split("<tr>")
+        if reverse("emergencies:emergency_detail", args=[stale.pk]) in r
+    )
+    assert "—" in row
+    assert "%" not in row

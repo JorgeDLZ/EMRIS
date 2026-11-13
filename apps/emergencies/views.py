@@ -47,7 +47,9 @@ def _intelligence_panel(emergency, has_impact):
     predictions = latest_predictions(emergency)
     panel = {"has_impact": has_impact}
     impact = predictions.get(IMPACT)
-    if impact is not None:
+    if impact is not None and impact.output["probability"] is None:
+        panel["impact_reason"] = impact.output["reason"]
+    elif impact is not None:
         panel["impact"] = {
             "percent": round(impact.output["probability"] * 100),
             "is_high_impact": impact.output["is_high_impact"],
