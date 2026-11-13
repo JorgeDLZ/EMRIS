@@ -8,8 +8,13 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.accounts.roles import ACTION_OWNER, ADMINISTRATOR, OPERATOR, RISK_MANAGER
 from apps.emergencies.models import CLOSED, REPORTED, Emergency, EmergencyType
+from apps.history.models import UngrdRecord
+from apps.intelligence import services
+from apps.intelligence.models import SIMILARITY, Prediction
+from apps.intelligence.training import activate_version, save_version, train_component
 from apps.places.models import Department, Municipality
 from apps.plans.models import (
+    ACTION_CODE_CHOICES,
     APPROVED,
     DRAFT,
     IN_PROGRESS,
@@ -20,6 +25,7 @@ from apps.plans.models import (
     Resource,
     ResourceAssignment,
 )
+from ml.tests.conftest import make_synthetic_frame
 
 PASSWORD = "pass-12345"
 
@@ -438,3 +444,186 @@ def test_operator_cannot_change_an_approved_plan(client, make_emergency):
     action.refresh_from_db()
     assignment.refresh_from_db()
     assert (action.description, assignment.quantity) == ("x", 1)
+
+
+CODE, LABEL = ACTION_CODE_CHOICES[0]
+
+
+@pytest.fixture(scope="module")
+def similarity_model():
+    return train_component(SIMILARITY, make_synthetic_frame(), {})
+
+
+@pytest.fixture
+def active_similarity(db, similarity_model):
+    services.clear_cache()
+    version = save_version(SIMILARITY, similarity_model, None, None)
+    activate_version(version)
+    yield version
+    services.clear_cache()
+
+
+def store_prediction(emergency, version, neighbors, actions):
+    return Prediction.objects.create(
+        emergency=emergency,
+        model_version=version,
+        component=SIMILARITY,
+        output={"neighbors": neighbors, "suggested_actions": actions},
+    )
+
+
+def test_suggest_stores_and_shows_cases(client, make_emergency, active_similarity):
+    emergency = make_emergency()
+    login(client, make_user("operator", OPERATOR))
+    url = reverse("plans:plan_suggest", args=[emergency.pk])
+
+    response = client.post(url, follow=True)
+    assert response.redirect_chain[-1][0] == reverse("plans:plan_detail", args=[emergency.pk])
+    assert "Similar emergencies were found." in response.content.decode()
+    assert Prediction.objects.filter(emergency=emergency, component=SIMILARITY).count() == 1
+    assert not ActionPlan.objects.filter(emergency=emergency).exists()
+
+    other = make_emergency()
+    record_department = Department.objects.get(code="05")
+    flood = EmergencyType.objects.get(name="Flood")
+    UngrdRecord.objects.create(
+        source_row=7,
+        occurred_on="2020-03-04",
+        department=record_department,
+        municipality=Municipality.objects.get(code="05001"),
+        emergency_type=flood,
+    )
+    UngrdRecord.objects.create(
+        source_row=8,
+        occurred_on="2021-05-06",
+        department=record_department,
+        emergency_type=flood,
+    )
+    store_prediction(
+        emergency,
+        active_similarity,
+        [
+            {"reference": "ungrd:7", "distance": 0.1, "event_type": "Flood", "occurred_on": "2020-03-04"},
+            {"reference": "ungrd:8", "distance": 0.2, "event_type": "Flood", "occurred_on": "2021-05-06"},
+            {"reference": f"emergency:{other.pk}", "distance": 0.3, "event_type": "Flood", "occurred_on": "2024-01-01"},
+        ],
+        [CODE],
+    )
+    html = client.get(reverse("plans:plan_detail", args=[emergency.pk])).content.decode()
+    assert "Similar emergencies v1" in html
+    assert "2020-03-04" in html and "MEDELLÍN" in html
+    assert "2021-05-06" in html and "ANTIOQUIA" in html
+    assert reverse("emergencies:emergency_detail", args=[other.pk]) in html
+    assert LABEL in html
+    assert reverse("plans:suggested_action_add", args=[emergency.pk]) in html
+
+
+def test_add_suggested_action_creates_coded_action(client, make_emergency):
+    emergency = make_emergency()
+    login(client, make_user("operator", OPERATOR))
+    url = reverse("plans:suggested_action_add", args=[emergency.pk])
+
+    response = client.post(url, {"code": CODE}, follow=True)
+    assert response.redirect_chain[-1][0] == reverse("plans:plan_detail", args=[emergency.pk])
+    assert "The action was added." in response.content.decode()
+    action = emergency.action_plan.actions.get()
+    assert (action.code, action.description, action.owner) == (CODE, LABEL, None)
+
+    assert client.post(url, {"code": CODE}).status_code == 302
+    assert emergency.action_plan.actions.count() == 2
+
+
+def test_add_refused_without_edit_right(client, make_emergency):
+    emergency = make_emergency()
+    plan = ActionPlan.objects.create(emergency=emergency, status=APPROVED)
+    login(client, make_user("operator", OPERATOR))
+    response = client.post(reverse("plans:suggested_action_add", args=[emergency.pk]), {"code": CODE})
+    assert response.status_code == 403
+    assert plan.actions.count() == 0
+
+    login(client, make_user("owner", ACTION_OWNER))
+    assert client.post(reverse("plans:plan_suggest", args=[emergency.pk])).status_code == 403
+
+
+def test_unknown_code_is_rejected(client, make_emergency):
+    emergency = make_emergency()
+    login(client, make_user("operator", OPERATOR))
+    url = reverse("plans:suggested_action_add", args=[emergency.pk])
+    assert client.post(url, {"code": "not_a_code"}).status_code == 400
+    assert client.post(url).status_code == 400
+    assert not ActionPlan.objects.filter(emergency=emergency).exists()
+
+
+def test_suggest_unavailable_shows_message(client, make_emergency, db):
+    services.clear_cache()
+    emergency = make_emergency()
+    login(client, make_user("operator", OPERATOR))
+    response = client.post(reverse("plans:plan_suggest", args=[emergency.pk]), follow=True)
+    html = response.content.decode()
+    assert "Suggestions are unavailable right now." in html
+    assert Prediction.objects.count() == 0
+
+
+def test_suggest_is_post_only(client, make_emergency):
+    emergency = make_emergency()
+    login(client, make_user("admin", ADMINISTRATOR))
+    assert client.get(reverse("plans:plan_suggest", args=[emergency.pk])).status_code == 405
+    assert client.get(reverse("plans:suggested_action_add", args=[emergency.pk])).status_code == 405
+
+
+def test_add_button_follows_edit_right(client, make_emergency, active_similarity):
+    emergency = make_emergency()
+    ActionPlan.objects.create(emergency=emergency, status=APPROVED)
+    store_prediction(emergency, active_similarity, [], [CODE])
+    url = reverse("plans:plan_detail", args=[emergency.pk])
+    add_url = reverse("plans:suggested_action_add", args=[emergency.pk])
+
+    login(client, make_user("operator", OPERATOR))
+    html = client.get(url).content.decode()
+    assert LABEL in html
+    assert "Add to plan" not in html
+    assert add_url not in html
+
+    login(client, make_user("admin", ADMINISTRATOR))
+    html = client.get(url).content.decode()
+    assert "Add to plan" in html
+    assert add_url in html
+
+
+def test_hidden_emergency_neighbors_are_not_disclosed(client, make_emergency, active_similarity):
+    emergency = make_emergency()
+    plan = ActionPlan.objects.create(emergency=emergency)
+    owner = make_user("owner", ACTION_OWNER)
+    Action.objects.create(plan=plan, description="Own", owner=owner)
+    hidden = Emergency.objects.create(
+        emergency_type=EmergencyType.objects.get(name="Flood"),
+        municipality=Municipality.objects.create(
+            department=Department.objects.get(code="05"), code="05088", name="BELLO"
+        ),
+        occurred_at=timezone.now() - timedelta(days=3),
+        status=REPORTED,
+    )
+    store_prediction(
+        emergency,
+        active_similarity,
+        [{"reference": f"emergency:{hidden.pk}", "distance": 0.1, "event_type": "Flood", "occurred_on": "2024-01-01"}],
+        [CODE],
+    )
+    login(client, owner)
+    html = client.get(reverse("plans:plan_detail", args=[emergency.pk])).content.decode()
+    assert "Similar emergencies v1" in html
+    assert "BELLO" not in html
+    assert reverse("emergencies:emergency_detail", args=[hidden.pk]) not in html
+
+
+def test_non_ascii_digit_reference_is_ignored(client, make_emergency, active_similarity):
+    emergency = make_emergency()
+    store_prediction(
+        emergency,
+        active_similarity,
+        [{"reference": "ungrd:\u00b2", "distance": 0.1, "event_type": "Flood", "occurred_on": "2024-01-01"}],
+        [],
+    )
+    login(client, make_user("operator", OPERATOR))
+    response = client.get(reverse("plans:plan_detail", args=[emergency.pk]))
+    assert response.status_code == 200

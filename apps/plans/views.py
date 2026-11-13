@@ -1,7 +1,8 @@
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.http import Http404
+from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import role_required
@@ -14,9 +15,12 @@ from apps.emergencies.policies import (
     visible_emergencies,
 )
 from apps.emergencies.workflow import WorkflowError
+from apps.history.models import UngrdRecord
+from apps.intelligence.models import SIMILARITY
+from apps.intelligence.services import latest_predictions, suggest_similar
 
 from .forms import ActionForm, AssignmentForm, ResourceForm
-from .models import DONE, Action, Resource, ResourceAssignment
+from .models import ACTION_CODE_CHOICES, DONE, Action, Resource, ResourceAssignment
 from .services import (
     add_action,
     advance_action,
@@ -57,11 +61,75 @@ def _visible_assignment(user, pk):
     return assignment
 
 
+def _can_suggest(user, emergency, plan):
+    return can_start_plan(user, emergency) or (plan is not None and can_edit_plan(user, plan))
+
+
+def _split_reference(reference):
+    kind, _, value = reference.partition(":")
+    return kind, int(value) if value.isascii() and value.isdigit() else None
+
+
+def _case_rows(user, neighbors):
+    references = [_split_reference(neighbor["reference"]) for neighbor in neighbors]
+    records = UngrdRecord.objects.filter(
+        source_row__in=[key for kind, key in references if kind == "ungrd" and key is not None]
+    ).select_related("emergency_type", "municipality", "department")
+    records = {record.source_row: record for record in records}
+    emergencies = (
+        visible_emergencies(user)
+        .filter(pk__in=[key for kind, key in references if kind == "emergency" and key is not None])
+        .select_related("emergency_type", "municipality")
+    )
+    emergencies = {emergency.pk: emergency for emergency in emergencies}
+    cases = []
+    for kind, key in references:
+        if kind == "ungrd" and key in records:
+            record = records[key]
+            place = record.municipality or record.department
+            cases.append(
+                {
+                    "date": record.occurred_on,
+                    "type": record.emergency_type.name,
+                    "place": place.name,
+                    "emergency_pk": None,
+                }
+            )
+        elif kind == "emergency" and key in emergencies:
+            emergency = emergencies[key]
+            cases.append(
+                {
+                    "date": timezone.localtime(emergency.occurred_at).date(),
+                    "type": emergency.emergency_type.name,
+                    "place": emergency.municipality.name,
+                    "emergency_pk": emergency.pk,
+                }
+            )
+    return cases
+
+
+def _suggestion_context(user, emergency):
+    prediction = latest_predictions(emergency).get(SIMILARITY)
+    if prediction is None:
+        return None
+    labels = dict(ACTION_CODE_CHOICES)
+    return {
+        "version": prediction.model_version,
+        "cases": _case_rows(user, prediction.output["neighbors"]),
+        "actions": [
+            (code, labels[code]) for code in prediction.output["suggested_actions"] if code in labels
+        ],
+    }
+
+
 def _detail_context(user, emergency, plan, assignment_form=None):
     context = {
         "emergency": emergency,
         "plan": plan,
         "can_start": can_start_plan(user, emergency),
+        "can_suggest": _can_suggest(user, emergency, plan),
+        "can_add": can_edit_plan(user, plan) if plan is not None else can_start_plan(user, emergency),
+        "suggestion": _suggestion_context(user, emergency),
     }
     if plan is not None:
         context.update(
@@ -98,6 +166,44 @@ def plan_start(request, emergency_pk):
         messages.error(request, str(error))
     else:
         messages.success(request, "The action plan was started.")
+    return redirect("plans:plan_detail", emergency_pk=emergency.pk)
+
+
+@require_POST
+@role_required(*EDIT_ROLES)
+def plan_suggest(request, emergency_pk):
+    emergency = _visible_emergency(request.user, emergency_pk)
+    if not _can_suggest(request.user, emergency, getattr(emergency, "action_plan", None)):
+        raise PermissionDenied
+    if suggest_similar(emergency) is None:
+        messages.error(request, "Suggestions are unavailable right now.")
+    else:
+        messages.success(request, "Similar emergencies were found.")
+    return redirect("plans:plan_detail", emergency_pk=emergency.pk)
+
+
+@require_POST
+@role_required(*EDIT_ROLES)
+def suggested_action_add(request, emergency_pk):
+    emergency = _visible_emergency(request.user, emergency_pk)
+    labels = dict(ACTION_CODE_CHOICES)
+    code = request.POST.get("code")
+    if code not in labels:
+        return HttpResponseBadRequest("Unknown action code.")
+    plan = getattr(emergency, "action_plan", None)
+    if plan is not None:
+        if not can_edit_plan(request.user, plan):
+            raise PermissionDenied
+    elif not can_start_plan(request.user, emergency):
+        raise PermissionDenied
+    try:
+        if plan is None:
+            plan = start_plan(emergency, request.user)
+        add_action(plan, description=labels[code], code=code)
+    except WorkflowError as error:
+        messages.error(request, str(error))
+    else:
+        messages.success(request, "The action was added.")
     return redirect("plans:plan_detail", emergency_pk=emergency.pk)
 
 

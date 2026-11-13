@@ -97,5 +97,58 @@
     </section>
   {% endif %}
 
+  <section class="card">
+    <h2>Suggested plan</h2>
+    {% if can_suggest %}
+      <form method="post" action="{% url 'plans:plan_suggest' emergency.pk %}">
+        {% csrf_token %}
+        <button type="submit">Suggest plan</button>
+      </form>
+    {% endif %}
+    {% if suggestion %}
+      <p>Model: {{ suggestion.version }}</p>
+      <h3>Similar cases</h3>
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Type</th><th>Place</th></tr>
+        </thead>
+        <tbody>
+          {% for case in suggestion.cases %}
+            <tr>
+              <td>
+                {% if case.emergency_pk %}
+                  <a href="{% url 'emergencies:emergency_detail' case.emergency_pk %}">{{ case.date|date:"Y-m-d" }}</a>
+                {% else %}
+                  {{ case.date|date:"Y-m-d" }}
+                {% endif %}
+              </td>
+              <td>{{ case.type }}</td>
+              <td>{{ case.place }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3">No similar cases are available.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <h3>Suggested actions</h3>
+      <ul>
+        {% for code, label in suggestion.actions %}
+          <li>
+            {{ label }}
+            {% if can_add %}
+              <form method="post" action="{% url 'plans:suggested_action_add' emergency.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="code" value="{{ code }}">
+                <button type="submit">Add to plan</button>
+              </form>
+            {% endif %}
+          </li>
+        {% empty %}
+          <li>No actions are suggested yet.</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+
   <p><a href="{% url 'emergencies:emergency_detail' emergency.pk %}">Back to the emergency</a></p>
 {% endblock %}
