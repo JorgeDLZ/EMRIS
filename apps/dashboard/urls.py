@@ -7,6 +7,6 @@ app_name = "dashboard"
 urlpatterns = [
     path("", views.index, name="index"),
     path("risk/", views.ranking, name="ranking"),
-    path("emergencies.csv", views.export_emergencies, name="export_emergencies"),
-    path("risk.csv", views.export_ranking, name="export_ranking"),
+    path("emergencies.xlsx", views.export_emergencies, name="export_emergencies"),
+    path("risk.xlsx", views.export_ranking, name="export_ranking"),
 ]

@@ -9,7 +9,7 @@
   <section>
     <h2>Active emergencies</h2>
     <p>{{ summary.active }} active emergencies, {{ summary.closed }} closed</p>
-    <p><a href="{% url 'dashboard:export_emergencies' %}">Download CSV</a></p>
+    <p><a href="{% url 'dashboard:export_emergencies' %}">Download Excel</a></p>
     {% if summary.active %}
       <h3>By status</h3>
       <table>

@@ -8,9 +8,10 @@ from apps.emergencies.policies import visible_emergencies
 from .exports import (
     EMERGENCY_HEADER,
     RANKING_HEADER,
-    csv_response,
     emergency_rows,
+    is_top_risk,
     ranking_rows,
+    xlsx_response,
 )
 from .ranking import departments, in_department, risk_ranking
 from .summary import emergency_summary, seismic_activity
@@ -54,11 +55,17 @@ def ranking(request):
 
 @role_required(*ALL_ROLES)
 def export_emergencies(request):
-    rows = emergency_rows(visible_emergencies(request.user))
-    return csv_response("emergencies.csv", EMERGENCY_HEADER, rows)
+    rows, highlight = emergency_rows(visible_emergencies(request.user))
+    return xlsx_response("emergencies.xlsx", "Emergencies", EMERGENCY_HEADER, rows, highlight)
 
 
 @role_required(*EDIT_ROLES)
 def export_ranking(request):
     ranking_data = risk_ranking(request.GET.get("department", ""))
-    return csv_response("municipal_risk_ranking.csv", RANKING_HEADER, ranking_rows(ranking_data))
+    return xlsx_response(
+        "municipal_risk_ranking.xlsx",
+        "Municipal risk ranking",
+        RANKING_HEADER,
+        ranking_rows(ranking_data),
+        is_top_risk,
+    )

@@ -39,7 +39,7 @@
   </form>
 
   <p>{{ page.paginator.count }} records</p>
-  <p><a href="{% url 'history:export' %}{% if querystring %}?{{ querystring }}{% endif %}">Download CSV</a></p>
+  <p><a href="{% url 'history:export' %}{% if querystring %}?{{ querystring }}{% endif %}">Download Excel</a></p>
 
   {% if page.object_list %}
     <table>
