@@ -62,6 +62,36 @@
     {% endif %}
   </section>
 
+  <section>
+    <h2>Seismic activity</h2>
+    {% if seismic.catalog_end %}
+      <p>Catalog up to {{ seismic.catalog_end|date:"Y-m-d" }}.</p>
+      <p>{{ seismic.event_count }} events in the last 30 days of the catalog.</p>
+      {% if seismic.events %}
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Magnitude</th><th>Depth (km)</th><th>Place</th><th>Municipality</th></tr>
+          </thead>
+          <tbody>
+            {% for event in seismic.events %}
+              <tr>
+                <td>{{ event.event_time|date:"Y-m-d H:i" }}</td>
+                <td>{{ event.magnitude|floatformat:1 }}</td>
+                <td>{{ event.depth_km|floatformat:1 }}</td>
+                <td>{{ event.place }}</td>
+                <td>{% if event.municipality %}{{ event.municipality.name }} ({{ event.municipality.department.name }}){% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p>No events of magnitude 4.0 or more in this period.</p>
+      {% endif %}
+    {% else %}
+      <p>No seismic events loaded.</p>
+    {% endif %}
+  </section>
+
   {% if show_ranking %}
     <section>
       <h2>Municipal risk ranking</h2>

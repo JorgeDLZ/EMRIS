@@ -3,10 +3,18 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
-from apps.dashboard.summary import PROFILE_PENDING, TOP_MUNICIPALITIES, emergency_summary
+from apps.dashboard.summary import (
+    PROFILE_PENDING,
+    SEISMIC_MAX_ROWS,
+    SEISMIC_WINDOW,
+    TOP_MUNICIPALITIES,
+    emergency_summary,
+    seismic_activity,
+)
 from apps.emergencies.models import CLOSED, IN_RESPONSE, REPORTED, Emergency, EmergencyType
 from apps.intelligence.models import PROFILES, ModelVersion, Prediction
 from apps.places.models import Department, Municipality
+from apps.seismic.models import SeismicEvent
 
 
 @pytest.fixture
@@ -116,3 +124,63 @@ def test_empty_summary(db):
     assert summary["by_type"] == []
     assert summary["by_municipality"] == []
     assert summary["by_profile"] == []
+
+
+def make_event(sgc_id, event_time, magnitude=4.5, **extra):
+    values = {"depth_km": 10.0, "latitude": 4.0, "longitude": -74.0, "place": "Near Bogota"}
+    values.update(extra)
+    return SeismicEvent.objects.create(
+        sgc_id=sgc_id, event_time=event_time, magnitude=magnitude, **values
+    )
+
+
+def test_seismic_window_ends_at_latest_event(db):
+    end = timezone.now() - timedelta(days=400)
+    make_event("a", end)
+    make_event("b", end - timedelta(days=29))
+    make_event("c", end - SEISMIC_WINDOW)
+    make_event("d", end - timedelta(days=31))
+    result = seismic_activity()
+    assert result["catalog_end"] == end
+    assert result["window_start"] == end - SEISMIC_WINDOW
+    assert result["event_count"] == 3
+    assert len(result["events"]) == 3
+
+
+def test_seismic_lists_strong_events_largest_first(db):
+    end = timezone.now() - timedelta(days=400)
+    make_event("weak", end, magnitude=3.9)
+    for index in range(25):
+        make_event(f"s{index}", end - timedelta(hours=index), magnitude=4.0 + index / 10)
+    result = seismic_activity()
+    assert result["event_count"] == 26
+    assert len(result["events"]) == SEISMIC_MAX_ROWS
+    magnitudes = [event.magnitude for event in result["events"]]
+    assert magnitudes == sorted(magnitudes, reverse=True)
+    assert magnitudes[0] == pytest.approx(6.4)
+    assert magnitudes[-1] == pytest.approx(4.5)
+    assert all(magnitude >= 4.0 for magnitude in magnitudes)
+
+
+def test_seismic_ties_list_newest_first(db):
+    end = timezone.now() - timedelta(days=400)
+    make_event("old", end - timedelta(days=1), magnitude=5.0)
+    make_event("new", end, magnitude=5.0)
+    assert [event.sgc_id for event in seismic_activity()["events"]] == ["new", "old"]
+
+
+def test_seismic_empty(db):
+    result = seismic_activity()
+    assert result["catalog_end"] is None
+    assert result["window_start"] is None
+    assert result["event_count"] == 0
+    assert result["events"] == []
+
+
+def test_seismic_uses_three_queries(db, municipality, django_assert_num_queries):
+    end = timezone.now() - timedelta(days=400)
+    for index in range(5):
+        make_event(f"q{index}", end - timedelta(hours=index), municipality=municipality)
+    with django_assert_num_queries(3):
+        events = seismic_activity()["events"]
+        assert [event.municipality.department.name for event in events] == ["ANTIOQUIA"] * 5

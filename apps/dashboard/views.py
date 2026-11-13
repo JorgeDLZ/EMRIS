@@ -6,7 +6,7 @@ from apps.accounts.roles import ALL_ROLES, EDIT_ROLES
 from apps.emergencies.policies import visible_emergencies
 
 from .ranking import departments, in_department, risk_ranking
-from .summary import emergency_summary
+from .summary import emergency_summary, seismic_activity
 
 PAGE_SIZE = 50
 TOP_SIZE = 10
@@ -15,7 +15,11 @@ TOP_SIZE = 10
 @role_required(*ALL_ROLES)
 def index(request):
     summary = emergency_summary(visible_emergencies(request.user))
-    context = {"summary": summary, "show_ranking": has_role(request.user, *EDIT_ROLES)}
+    context = {
+        "summary": summary,
+        "seismic": seismic_activity(),
+        "show_ranking": has_role(request.user, *EDIT_ROLES),
+    }
     if context["show_ranking"]:
         ranking = risk_ranking()
         context["ranking"] = ranking

@@ -1,6 +1,7 @@
 import subprocess
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 from pathlib import Path
 
 import pytest
@@ -13,6 +14,7 @@ from apps.accounts.roles import ACTION_OWNER, ADMINISTRATOR, OPERATOR, RISK_MANA
 from apps.emergencies.models import Emergency, EmergencyType
 from apps.places.models import Department, Municipality
 from apps.plans.models import Action, ActionPlan
+from apps.seismic.models import SeismicEvent
 
 PASSWORD = "pass-12345"
 
@@ -90,3 +92,44 @@ def test_dashboard_does_not_import_pandas():
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_dashboard_shows_seismic_panel_to_every_role(client, db):
+    department = Department.objects.create(code="05", name="ANTIOQUIA")
+    municipality = Municipality.objects.create(department=department, code="05001", name="MEDELLIN")
+    SeismicEvent.objects.create(
+        sgc_id="x", event_time=timezone.now() - timedelta(days=400), magnitude=5.26,
+        depth_km=12.34, latitude=4.0, longitude=-74.0, place="Near Medellin",
+        municipality=municipality,
+    )
+    for role in (ADMINISTRATOR, RISK_MANAGER, OPERATOR, ACTION_OWNER):
+        client.force_login(make_user(f"user-{role}", role))
+        html = client.get(reverse("dashboard:index")).content.decode()
+        assert "Seismic activity" in html
+        assert "Catalog up to" in html
+        assert "1 events in the last 30 days of the catalog." in html
+        assert "<td>5.3</td>" in html
+        assert "<td>12.3</td>" in html
+        assert "MEDELLIN (ANTIOQUIA)" in html
+
+
+def test_dashboard_seismic_panel_empty_texts(client, db):
+    client.force_login(make_user("viewer", OPERATOR))
+    assert "No seismic events loaded." in client.get(reverse("dashboard:index")).content.decode()
+    SeismicEvent.objects.create(
+        sgc_id="w", event_time=timezone.now(), magnitude=3.0, depth_km=1.0,
+        latitude=4.0, longitude=-74.0, place="Weak",
+    )
+    html = client.get(reverse("dashboard:index")).content.decode()
+    assert "No events of magnitude 4.0 or more in this period." in html
+
+
+def test_dashboard_shows_seismic_dates_in_local_time(client, db):
+    SeismicEvent.objects.create(
+        sgc_id="tz", event_time=datetime(2026, 3, 2, 2, 0, tzinfo=dt_timezone.utc), magnitude=4.5,
+        depth_km=10.0, latitude=4.0, longitude=-74.0, place="Local time check",
+    )
+    client.force_login(make_user("viewer", OPERATOR))
+    html = client.get(reverse("dashboard:index")).content.decode()
+    assert "Catalog up to 2026-03-01." in html
+    assert "<td>2026-03-01 21:00</td>" in html
