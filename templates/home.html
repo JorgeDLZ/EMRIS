@@ -6,4 +6,5 @@
   <h1>EMRIS</h1>
   <p class="subtitle">Emergency Management &amp; Resource Information System</p>
   <p>Register, plan and track emergencies in Colombia.</p>
+  {% if user.role_label or user.is_superuser %}<p><a href="{% url 'dashboard:index' %}">Open the dashboard</a></p>{% endif %}
 {% endblock %}

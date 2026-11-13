@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "apps.history",
     "apps.seismic",
     "apps.intelligence",
+    "apps.dashboard",
 ]
 
 MIDDLEWARE = [

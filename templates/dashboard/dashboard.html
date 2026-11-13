@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}EMRIS — Dashboard{% endblock %}
+
+{% block content %}
+  <h1>Dashboard</h1>
+  {% include "_messages.html" %}
+
+  <section>
+    <h2>Active emergencies</h2>
+    <p>{{ summary.active }} active emergencies, {{ summary.closed }} closed</p>
+    {% if summary.active %}
+      <h3>By status</h3>
+      <table>
+        <thead>
+          <tr><th>Status</th><th>Emergencies</th></tr>
+        </thead>
+        <tbody>
+          {% for label, count in summary.by_status %}
+            <tr><td>{{ label }}</td><td>{{ count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <h3>By type</h3>
+      <table>
+        <thead>
+          <tr><th>Type</th><th>Emergencies</th></tr>
+        </thead>
+        <tbody>
+          {% for name, count in summary.by_type %}
+            <tr><td>{{ name }}</td><td>{{ count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <h3>Top municipalities</h3>
+      <table>
+        <thead>
+          <tr><th>Municipality</th><th>Department</th><th>Emergencies</th></tr>
+        </thead>
+        <tbody>
+          {% for municipality, department, count in summary.by_municipality %}
+            <tr><td>{{ municipality }}</td><td>{{ department }}</td><td>{{ count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <h3>By profile</h3>
+      <table>
+        <thead>
+          <tr><th>Profile</th><th>Emergencies</th></tr>
+        </thead>
+        <tbody>
+          {% for profile, count in summary.by_profile %}
+            <tr><td>{{ profile }}</td><td>{{ count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No active emergencies.</p>
+    {% endif %}
+  </section>
+{% endblock %}
