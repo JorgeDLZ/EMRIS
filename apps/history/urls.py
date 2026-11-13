@@ -1,0 +1,10 @@
+from django.urls import path
+
+from apps.history import views
+
+app_name = "history"
+
+urlpatterns = [
+    path("", views.record_list, name="record_list"),
+    path("<int:source_row>/", views.record_detail, name="record_detail"),
+]

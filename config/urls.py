@@ -12,5 +12,6 @@ urlpatterns = [
     path("plans/", include("apps.plans.urls")),
     path("intelligence/", include("apps.intelligence.urls")),
     path("dashboard/", include("apps.dashboard.urls")),
+    path("history/", include("apps.history.urls")),
     path("", home, name="home"),
 ]
