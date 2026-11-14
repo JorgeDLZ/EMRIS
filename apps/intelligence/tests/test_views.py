@@ -159,9 +159,9 @@ def test_run_in_thread_logs_unexpected_errors(monkeypatch, caplog):
 
 def test_navigation_link_is_for_administrators(client, db):
     login(client, ADMINISTRATOR)
-    assert reverse("intelligence:model_list") in client.get("/").content.decode()
+    assert reverse("intelligence:model_list") in client.get(reverse("dashboard:index")).content.decode()
     login(client, OPERATOR)
-    assert reverse("intelligence:model_list") not in client.get("/").content.decode()
+    assert reverse("intelligence:model_list") not in client.get(reverse("dashboard:index")).content.decode()
 
 
 def test_key_metrics_show_text_and_rounded_floats(client, db, synthetic):

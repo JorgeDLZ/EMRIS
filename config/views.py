@@ -1,8 +1,6 @@
 from django.db import OperationalError, connection
 from django.http import JsonResponse
-from django.views.generic import TemplateView
-
-from apps.accounts.permissions import RoleRequiredMixin
+from django.shortcuts import render
 
 
 def health(request):
@@ -14,8 +12,12 @@ def health(request):
     return JsonResponse({"status": "ok"})
 
 
-class HomeView(RoleRequiredMixin, TemplateView):
-    template_name = "home.html"
-
-
-home = HomeView.as_view()
+def home(request):
+    user = request.user
+    signed_in = user.is_authenticated
+    has_access = signed_in and bool(user.role_label or user.is_superuser)
+    return render(
+        request,
+        "home.html",
+        {"show_dashboard_link": has_access, "awaiting_role": signed_in and not has_access},
+    )

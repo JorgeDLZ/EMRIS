@@ -176,10 +176,10 @@ def test_nav_links_follow_role(client, db):
     link = f'href="{reverse("places:municipality_list")}"'
 
     client.force_login(make_user("olga", OPERATOR))
-    assert link in client.get(reverse("home")).content.decode()
+    assert link in client.get(reverse("dashboard:index")).content.decode()
 
     client.force_login(make_user("alan", ACTION_OWNER))
-    assert link not in client.get(reverse("home")).content.decode()
+    assert link not in client.get(reverse("dashboard:index")).content.decode()
 
 
 def test_operator_similar_warning_hides_other_operators_pending(client, antioquia):

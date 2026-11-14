@@ -144,6 +144,41 @@ textarea:focus-visible {
   border-top: 1px solid var(--hairline);
 }
 
+.landing-hero {
+  padding: 64px 48px;
+  margin-bottom: 48px;
+  background: var(--spruce-900);
+  border-radius: var(--radius);
+  color: var(--white);
+}
+.landing-hero h1 { color: var(--white); font-size: 3rem; letter-spacing: 0.04em; margin-bottom: 8px; }
+.landing-hero-title { font-size: 1.35rem; font-weight: 500; margin-bottom: 16px; }
+.landing-hero-lead { max-width: 40rem; color: var(--spruce-200); font-size: 1.1rem; }
+.landing-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.landing-hero .btn-secondary { border-color: var(--spruce-200); color: var(--white); }
+.landing-hero .btn-secondary:hover { background: var(--white); color: var(--spruce-900); }
+
+.landing-section { max-width: 52rem; margin: 0 auto 48px; scroll-margin-top: 16px; }
+.landing-section h2 { font-size: 1.6rem; margin-bottom: 16px; }
+.landing-section h3 { margin-top: 24px; }
+.landing-section .card-grid h4 { margin: 0 0 8px; font-size: 1rem; font-weight: 600; }
+.landing-section ol,
+.landing-section ul { margin: 0 0 12px; padding-left: 24px; }
+.landing-section li { margin-bottom: 8px; }
+.landing-section .table-wrap { margin-bottom: 24px; }
+.landing-contents { columns: 2 16rem; }
+.landing-in-emris { margin-top: 16px; border-left: 4px solid var(--verdant); }
+.landing-in-emris h3 { margin-top: 0; }
+.landing-in-emris p:last-child { margin-bottom: 0; }
+
+.cycle { display: block; width: 100%; max-width: 760px; height: auto; margin: 24px auto; color: var(--spruce-900); }
+.cycle-link { fill: none; stroke: var(--spruce-mist); stroke-width: 2; }
+.cycle-arrowhead { fill: var(--spruce-mist); }
+.cycle-node { fill: var(--spruce-900); }
+.cycle-number { fill: var(--white); font-size: 18px; font-weight: 600; }
+.cycle-label { fill: currentColor; font-size: 15px; font-weight: 500; }
+.cycle-center { fill: var(--spruce-mist); font-size: 20px; font-weight: 600; letter-spacing: 0.04em; }
+
 .auth-panel { max-width: 28rem; margin: 0 auto; }
 
 .status-page { max-width: 32rem; margin: 48px auto; text-align: center; }
@@ -312,6 +347,7 @@ textarea {
 
 @media (max-width: 640px) {
   .content, .public-main { padding-left: 16px; padding-right: 16px; }
+  .landing-hero { padding: 40px 24px; }
   .bar-list li { grid-template-columns: 1fr auto; }
   .bar-list .bar-track { grid-column: 1 / -1; }
 }

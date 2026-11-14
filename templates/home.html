@@ -1,10 +1,279 @@
-{% extends "base.html" %}
+{% extends "public_base.html" %}
 
-{% block title %}EMRIS — Home{% endblock %}
+{% block title %}EMRIS — Emergency Management &amp; Resource Information System{% endblock %}
 
 {% block content %}
-  <h1>EMRIS</h1>
-  <p class="subtitle">Emergency Management &amp; Resource Information System</p>
-  <p>Register, plan and track emergencies in Colombia.</p>
-  {% if user.role_label or user.is_superuser %}<p><a href="{% url 'dashboard:index' %}">Open the dashboard</a></p>{% endif %}
+  <section id="top" class="landing-hero">
+    <h1>EMRIS</h1>
+    <p class="landing-hero-title">Emergency Management &amp; Resource Information System</p>
+    <p class="landing-hero-lead">A web information system to register, plan and track emergencies in Colombia, with machine learning that supports prioritisation and response planning.</p>
+    <div class="landing-actions">
+      {% if show_dashboard_link %}
+        <a class="btn btn-primary" href="{% url 'dashboard:index' %}">Open dashboard</a>
+      {% elif awaiting_role %}
+        <a class="btn btn-primary" href="{% url 'accounts:pending' %}">Check account status</a>
+      {% else %}
+        <a class="btn btn-primary" href="{% url 'accounts:login' %}">Log in</a>
+        <a class="btn btn-secondary" href="{% url 'accounts:register' %}">Register</a>
+      {% endif %}
+      <a class="btn btn-secondary" href="#methodology">Read the methodology</a>
+    </div>
+  </section>
+
+  <nav id="contents" class="landing-section" aria-labelledby="contents-title">
+    <h2 id="contents-title">Contents</h2>
+    <ol class="landing-contents">
+      <li><a href="#problem">Problem statement and justification</a></li>
+      <li><a href="#objectives">Objectives</a></li>
+      <li><a href="#framework">Reference framework</a></li>
+      <li><a href="#methodology">CRISP-ML methodology</a></li>
+      <li><a href="#timeline">Development timeline</a></li>
+      <li><a href="#system">System and results</a></li>
+      <li><a href="#references">References</a></li>
+    </ol>
+  </nav>
+
+  <section id="problem" class="landing-section">
+    <h2>Problem statement and justification</h2>
+    <h3>Problem</h3>
+    <p>Municipal and departmental risk councils in Colombia register every emergency, plan the response, assign resources and follow each case until it is closed. In 2025 alone the UNGRD reported 6,506 emergencies across the country. Without one shared system for this work, it is hard to see which open emergencies need attention first, to learn from how similar past emergencies were handled, and to compare how exposed each municipality is.</p>
+    <h3>Justification</h3>
+    <p>The UNGRD publishes its 2025 emergency records as open data, with their type, place, date, impact and the actions taken. EMRIS uses that history to train machine learning models and places them inside the daily workflow: an estimated probability of high impact when an emergency is reported, a profile once its impact is known, the most similar past cases with a suggested action plan, and a municipal risk level that also uses the seismicity catalog of the Colombian Geological Survey (SGC).</p>
+    <p>The models support the staff's decisions; they do not replace them, and they do not predict where or when a disaster will happen.</p>
+  </section>
+
+  <section id="objectives" class="landing-section">
+    <h2>Objectives</h2>
+    <h3>General objective</h3>
+    <p>Develop and deploy a web information system that lets a risk council register, plan and track emergencies in Colombia, integrating four machine learning components trained on the UNGRD 2025 emergency history to support prioritisation and response planning.</p>
+    <h3>Specific objectives</h3>
+    <ol>
+      <li>Prepare the source data: clean the UNGRD 2025 emergency records, link them to the DANE DIVIPOLA municipality codes, extract the response actions from their comments and load the SGC seismicity catalog.</li>
+      <li>Build the emergency workflow with role-based access: reporting, impact, follow-up from Reported to Closed, action plans with owners and due dates, and resource assignment.</li>
+      <li>Train and evaluate four models against simple baselines: a high-impact estimator, emergency profiles (K-means), similar emergencies with a suggested action plan (k-nearest neighbors) and municipal risk levels (hierarchical clustering).</li>
+      <li>Integrate the models into the application as versioned models that can be retrained from the interface, where a new version is activated only when it passes a quality gate against the active one.</li>
+      <li>Provide a dashboard, the municipal risk ranking, a seismic activity panel, a browser for the UNGRD history and Excel reports.</li>
+      <li>Deploy the system on Render with a PostgreSQL database on Supabase, following the CRISP-ML methodology.</li>
+    </ol>
+  </section>
+
+  <section id="framework" class="landing-section">
+    <h2>Reference framework</h2>
+    <h3>Legal and institutional context</h3>
+    <p>Law 1523 of 2012 (Ley 1523 de 2012) adopts Colombia's national disaster risk management policy and establishes the National Disaster Risk Management System (SNGRD), coordinated by the National Unit for Disaster Risk Management (UNGRD). The departmental and municipal councils for disaster risk management are part of that system; they are the intended users of EMRIS.</p>
+    <h3>Data sources</h3>
+    <ul>
+      <li>UNGRD, “Emergencias UNGRD V2”, Datos Abiertos Colombia: 6,506 emergencies reported from 1 January to 31 December 2025.</li>
+      <li>DANE, DIVIPOLA: the official codes of Colombia's departments and municipalities.</li>
+      <li>Servicio Geológico Colombiano (SGC), seismicity catalog from 1 June 2020 to 7 November 2026; EMRIS keeps the 14,332 events of magnitude 2.5 and above.</li>
+    </ul>
+    <h3>Machine learning concepts</h3>
+    <ul>
+      <li>Supervised classification: logistic regression and gradient boosting, evaluated with F1, precision, recall and PR-AUC on a time-based split.</li>
+      <li>Clustering: K-means and hierarchical agglomerative clustering (Ward), chosen with the silhouette score and checked for stability with the adjusted Rand index.</li>
+      <li>Nearest neighbors: k-nearest neighbors (k = 5) to retrieve similar emergencies, evaluated with precision at 5.</li>
+      <li>Baselines: every model is compared with a simple rule before it is used.</li>
+    </ul>
+    <h3>Methodology</h3>
+    <p>The project follows CRISP-ML, described in the next section.</p>
+  </section>
+
+  <section id="methodology" class="landing-section">
+    <h2>CRISP-ML methodology</h2>
+    <p>CRISP-ML is an evolution of CRISP-DM for machine learning projects. Its stages are iterative: results from a later stage send the work back to an earlier one. It puts particular emphasis on integrating the model into real systems and on monitoring it once it is in use.</p>
+    <svg class="cycle" viewBox="0 0 760 380" role="img" aria-labelledby="cycle-title">
+      <title id="cycle-title">The CRISP-ML cycle: business and data understanding, data engineering, model engineering, model evaluation, deployment, and monitoring and maintenance, repeating in a loop</title>
+      <defs>
+        <marker id="cycle-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+          <path d="M0 0 L10 5 L0 10 z" class="cycle-arrowhead"/>
+        </marker>
+      </defs>
+      <path class="cycle-link" marker-end="url(#cycle-arrow)" d="M411.4 63.9 A130 130 0 0 1 473.5 99.7"/>
+      <path class="cycle-link" marker-end="url(#cycle-arrow)" d="M505 154.2 A130 130 0 0 1 505 225.8"/>
+      <path class="cycle-link" marker-end="url(#cycle-arrow)" d="M473.5 280.3 A130 130 0 0 1 411.4 316.1"/>
+      <path class="cycle-link" marker-end="url(#cycle-arrow)" d="M348.6 316.1 A130 130 0 0 1 286.5 280.3"/>
+      <path class="cycle-link" marker-end="url(#cycle-arrow)" d="M255 225.8 A130 130 0 0 1 255 154.2"/>
+      <path class="cycle-link" marker-end="url(#cycle-arrow)" d="M286.5 99.7 A130 130 0 0 1 348.6 63.9"/>
+      <text class="cycle-center" x="380" y="196" text-anchor="middle">CRISP-ML</text>
+      <circle class="cycle-node" cx="380" cy="60" r="22"/>
+      <text class="cycle-number" x="380" y="66" text-anchor="middle">1</text>
+      <text class="cycle-label" x="380" y="26" text-anchor="middle">Business and data understanding</text>
+      <circle class="cycle-node" cx="492.6" cy="125" r="22"/>
+      <text class="cycle-number" x="492.6" y="131" text-anchor="middle">2</text>
+      <text class="cycle-label" x="522" y="130">Data engineering</text>
+      <circle class="cycle-node" cx="492.6" cy="255" r="22"/>
+      <text class="cycle-number" x="492.6" y="261" text-anchor="middle">3</text>
+      <text class="cycle-label" x="522" y="260">Model engineering</text>
+      <circle class="cycle-node" cx="380" cy="320" r="22"/>
+      <text class="cycle-number" x="380" y="326" text-anchor="middle">4</text>
+      <text class="cycle-label" x="380" y="366" text-anchor="middle">Model evaluation</text>
+      <circle class="cycle-node" cx="267.4" cy="255" r="22"/>
+      <text class="cycle-number" x="267.4" y="261" text-anchor="middle">5</text>
+      <text class="cycle-label" x="238" y="260" text-anchor="end">Deployment</text>
+      <circle class="cycle-node" cx="267.4" cy="125" r="22"/>
+      <text class="cycle-number" x="267.4" y="131" text-anchor="middle">6</text>
+      <text class="cycle-label" x="238" y="130" text-anchor="end">Monitoring and maintenance</text>
+    </svg>
+  </section>
+
+  <section id="business-understanding" class="landing-section">
+    <h2>Business and data understanding</h2>
+    <ul>
+      <li>Business objectives: what the organisation needs to achieve and how success will be recognised.</li>
+      <li>Key questions: what the project has to answer for its users.</li>
+      <li>Data assessment: which data exist, where they come from and how reliable they are.</li>
+      <li>Feasibility analysis: whether the objectives can be met with the available data and resources.</li>
+    </ul>
+    <div class="card landing-in-emris">
+      <h3>In EMRIS</h3>
+      <p>The objective is to support prioritisation and response planning in risk councils with four components: an impact estimator, emergency profiles, similar emergencies with a suggested action plan and a municipal risk level. The data are the 2025 UNGRD emergency history, the DANE DIVIPOLA municipality codes and the SGC seismicity catalog of magnitude 2.5 and above. The impact estimator uses only fields known at report time: event type, department, municipality and month.</p>
+    </div>
+  </section>
+
+  <section id="data-engineering" class="landing-section">
+    <h2>Data engineering</h2>
+    <ul>
+      <li>Selection: choosing the records and variables that the models will use.</li>
+      <li>Cleaning: removing errors, duplicates and inconsistencies.</li>
+      <li>Transformation: turning the cleaned data into the form the algorithms need.</li>
+      <li>Documentation: recording every decision taken on the data.</li>
+    </ul>
+    <div class="card landing-in-emris">
+      <h3>In EMRIS</h3>
+      <p>The UNGRD file is kept exactly as downloaded. The load commands clean it, link each record to its DIVIPOLA municipality and extract the response actions from the free-text comments. The SGC catalog is filtered to magnitude 2.5 and above with rows unchanged, and each event is linked to a municipality. Both loads can be run again without duplicating data. The exploration notebook documents the findings.</p>
+    </div>
+  </section>
+
+  <section id="model-engineering" class="landing-section">
+    <h2>Model engineering</h2>
+    <ul>
+      <li>Algorithm selection: comparing candidate techniques for each problem.</li>
+      <li>Documentation: describing the chosen techniques and why they were chosen.</li>
+      <li>Training: fitting the models on the prepared data.</li>
+      <li>Hyperparameter tuning: adjusting the settings that control how a model learns.</li>
+    </ul>
+    <div class="card landing-in-emris">
+      <h3>In EMRIS</h3>
+      <p>The impact estimator compares logistic regression and gradient boosting, and its decision threshold is tuned on September. Emergency profiles use K-means on log-scaled impact variables. Similar emergencies use k-nearest neighbors (k = 5) on type, place, month and impact. Municipal risk uses hierarchical agglomerative clustering (Ward) of municipalities with at least 3 emergencies. Five notebooks document the exploration and the four models.</p>
+    </div>
+  </section>
+
+  <section id="model-evaluation" class="landing-section">
+    <h2>Model evaluation</h2>
+    <ul>
+      <li>Validation and performance metrics: measuring how well each model does its job.</li>
+      <li>Cross-validation: checking that the results hold on data the model has not seen.</li>
+      <li>Risk analysis: identifying what could go wrong when the model is used.</li>
+    </ul>
+    <div class="card landing-in-emris">
+      <h3>In EMRIS</h3>
+      <p>The impact estimator and similar emergencies are evaluated with a time-based split: train on January–September, test on October–December. Emergency profiles and municipal risk are fitted and scored on the whole year. The selected logistic regression reaches F1 0.51 against 0.48 for the baseline of the same type and municipality. Profiles are stable across seeds (ARI 0.98) and municipal risk has a stability ARI of 0.73. Similar emergencies reach precision at 5 of 0.94 with impact data against 0.75 for random neighbors of the same type.</p>
+    </div>
+  </section>
+
+  <section id="deployment" class="landing-section">
+    <h2>Deployment</h2>
+    <ul>
+      <li>Production deployment: making the model available to its users inside a real system.</li>
+      <li>Documentation and training: explaining to users how the system works and how to operate it.</li>
+    </ul>
+    <div class="card landing-in-emris">
+      <h3>In EMRIS</h3>
+      <p>The application runs on Render with a Supabase PostgreSQL database. The four components are trained from the database and stored as versioned models in the database. They appear inside the workflow: the estimated probability, profile and municipal risk level on each emergency, the open emergencies ordered by estimated probability, and the suggested action plan from similar past cases. Excel reports export emergencies, the municipal risk ranking and the UNGRD history.</p>
+    </div>
+  </section>
+
+  <section id="monitoring" class="landing-section">
+    <h2>Monitoring and maintenance</h2>
+    <ul>
+      <li>Protocols: agreed procedures for supervising the system.</li>
+      <li>Continuous supervision: watching how the model behaves in use.</li>
+      <li>Drift detection: noticing when new data stop resembling the training data.</li>
+      <li>Model updates: retraining and replacing models when needed.</li>
+      <li>Risk review: revisiting the risks as the system evolves.</li>
+    </ul>
+    <div class="card landing-in-emris">
+      <h3>In EMRIS</h3>
+      <p>Administrators retrain the models from the interface; training uses the historical records plus the closed emergencies with a recorded impact. A new version is activated only if it passes the quality gate: the impact estimator and the emergency profiles need a strictly better candidate, compared on records dated after the active model's training period, while similar emergencies and municipal risk need a candidate that is not worse. A run still running after 30 minutes is marked failed. Every version is kept, so any previous one can be reactivated.</p>
+    </div>
+  </section>
+
+  <section id="timeline" class="landing-section">
+    <h2>Development timeline</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col">Milestone</th><th scope="col">Dates</th><th scope="col">Delivered</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Foundation</td><td>7–8 Nov 2026</td><td>Django project, health check, users, roles and sign-in, deployment on Render with continuous integration.</td></tr>
+          <tr><td>Data and catalogs</td><td>9 Nov 2026</td><td>UNGRD cleaning and action extraction, DIVIPOLA municipalities, emergency types, loading of the UNGRD history and the SGC catalog.</td></tr>
+          <tr><td>Machine learning package</td><td>10 Nov 2026</td><td>Training frame, time-based split, the four models and the exploration and model notebooks.</td></tr>
+          <tr><td>Emergency workflow</td><td>11–12 Nov 2026</td><td>Emergencies, impact, follow-up, action plans, resources, permissions and the earthquake link to SGC events.</td></tr>
+          <tr><td>Intelligence in the application</td><td>12–13 Nov 2026</td><td>Versioned models, training with the activation gate, predictions on new emergencies, suggested plans and the models page with retrain and rollback.</td></tr>
+          <tr><td>Dashboard, reports and history</td><td>13 Nov 2026</td><td>Dashboard, municipal risk ranking, seismic activity panel, UNGRD history browser and Excel reports.</td></tr>
+          <tr><td>Visual design and release</td><td>From 13 Nov 2026</td><td>Design system, navigation by role, this page, least-privilege permissions and the final release.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="system" class="landing-section">
+    <h2>System and results</h2>
+    <div id="modules">
+      <h3>What EMRIS does</h3>
+      <div class="card-grid">
+        <div class="card">
+          <h4>Emergencies</h4>
+          <p>Report, edit and list emergencies with filters. Record impact with 10 variables and follow each one through Reported, In response, Controlled and Closed.</p>
+        </div>
+        <div class="card">
+          <h4>Action plans and resources</h4>
+          <p>Operators draft one plan per emergency and administrators and risk managers approve it. Each plan has actions with owners, due dates and statuses, and the assigned resources are freed when the emergency closes.</p>
+        </div>
+        <div class="card">
+          <h4>Intelligence</h4>
+          <p>Each emergency shows its estimated high-impact probability, its profile and the municipal risk level. Suggested action plans come from similar past cases, and administrators manage and retrain the models.</p>
+        </div>
+        <div class="card">
+          <h4>Dashboard and reports</h4>
+          <p>Active emergency summaries, the municipal risk ranking, recent seismic activity, a browser for the UNGRD history and three Excel reports.</p>
+        </div>
+        <div class="card">
+          <h4>Catalogs and access</h4>
+          <p>Municipalities based on the DANE DIVIPOLA codes, emergency types and resources. Four roles control access: administrator, risk manager, operator and action owner.</p>
+        </div>
+      </div>
+    </div>
+    <div id="models">
+      <h3>Models and metrics</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Component</th><th scope="col">Technique</th><th scope="col">Evaluation</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Impact estimator</td><td>Supervised classification of high-impact emergencies using only fields known at report time. Logistic regression and gradient boosting are compared.</td><td>Logistic regression selected: F1 0.51 (recall 0.77, precision 0.38, PR-AUC 0.54). Baseline “same type and municipality”: F1 0.48 (PR-AUC 0.41). Gradient boosting: F1 0.50.</td></tr>
+            <tr><td>Emergency profiles</td><td>K-means on log-scaled impact variables; emergencies with no recorded impact are labeled separately.</td><td>K = 3 chosen by silhouette (0.51), stable across seeds (ARI 0.98): “Minor impact”, “Families affected and people affected”, “Injuries and deaths”.</td></tr>
+            <tr><td>Similar emergencies and suggested plan</td><td>k-nearest neighbors (k = 5) on type, place, month and impact. Suggested actions are those present in at least 2 of the 5 neighbors.</td><td>Precision@5 (same type and impact level): 0.94 with impact data, 0.78 without. Baseline, random neighbors of the same type: 0.75.</td></tr>
+            <tr><td>Municipal risk</td><td>Hierarchical agglomerative clustering (Ward) of municipalities with at least 3 emergencies, using emergency count, share of the three main types, share of high impact, mean impact and shallow seismic activity.</td><td>K = 3 chosen by silhouette (0.21) and dendrogram, stability ARI 0.73. 620 municipalities ranked, 319 with insufficient history.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="references" class="landing-section">
+    <h2>References</h2>
+    <ul class="landing-references">
+      <li>Schmid, S., Wurst, S. and Wirth, R. (2020). “Towards CRISP-ML(Q): A Machine Learning Process Model with Quality Assurance Methodology”.</li>
+      <li>ML-Ops.org. “CRISP-ML(Q): The ML Lifecycle Process”.</li>
+      <li>KDnuggets (2025). “The Machine Learning Lifecycle”.</li>
+      <li>Congreso de la República de Colombia (2012). “Ley 1523 de 2012”.</li>
+      <li>UNGRD. “Emergencias UNGRD V2”, Datos Abiertos Colombia.</li>
+      <li>DANE. “DIVIPOLA — División Político-Administrativa de Colombia”.</li>
+      <li>Servicio Geológico Colombiano (SGC), seismicity catalog, 1 June 2020 to 7 November 2026.</li>
+      <li>Pedregosa et al. (2011). “Scikit-learn: Machine Learning in Python”, Journal of Machine Learning Research 12.</li>
+    </ul>
+  </section>
 {% endblock %}

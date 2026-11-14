@@ -422,7 +422,7 @@ def test_detail_buttons_follow_policy(client, make_emergency):
 @pytest.mark.parametrize("role", [ADMINISTRATOR, RISK_MANAGER, OPERATOR, ACTION_OWNER])
 def test_nav_shows_emergencies_link(client, db, role):
     client.force_login(make_user("ana", role))
-    html = client.get(reverse("home")).content.decode()
+    html = client.get(reverse("dashboard:index")).content.decode()
     assert reverse("emergencies:emergency_list") in html
 
 

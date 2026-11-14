@@ -25,17 +25,17 @@ class AdminOnlyView(RoleRequiredMixin, View):
         return HttpResponse("ok")
 
 
-def test_anonymous_home_redirects_to_login(client):
+def test_anonymous_home_is_public(client):
     response = client.get(reverse("home"))
-    assert response.status_code == 302
-    assert response.url.startswith(reverse("accounts:login"))
+    assert response.status_code == 200
+    assert "Log in" in response.content.decode()
 
 
-def test_user_without_role_sees_pending_on_home(client, db):
+def test_user_without_role_sees_pending_link_on_home(client, db):
     client.force_login(make_user())
     response = client.get(reverse("home"))
-    assert response.status_code == 302
-    assert response.url == reverse("accounts:pending")
+    assert response.status_code == 200
+    assert f'href="{reverse("accounts:pending")}"' in response.content.decode()
 
 
 def test_user_without_role_direct_url_sees_pending(client, db):

@@ -82,7 +82,7 @@ def test_role_none_removes_access(client, db):
     set_role(admin, target, None)
     assert get_role(target) is None
     client.force_login(target)
-    response = client.get(reverse("home"))
+    response = client.get(reverse("dashboard:index"))
     assert response.status_code == 302
     assert response.url == reverse("accounts:pending")
 
@@ -123,7 +123,7 @@ def test_user_list_link_only_for_administrators(client, db):
     link = f'href="{reverse("accounts:user_list")}"'
 
     client.force_login(make_user("adam", ADMINISTRATOR))
-    assert link in client.get(reverse("home")).content.decode()
+    assert link in client.get(reverse("dashboard:index")).content.decode()
 
     client.force_login(make_user("olga", OPERATOR))
-    assert link not in client.get(reverse("home")).content.decode()
+    assert link not in client.get(reverse("dashboard:index")).content.decode()

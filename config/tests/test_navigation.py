@@ -81,6 +81,10 @@ def test_menu_items_share_the_view_role_tuples():
         for entry in entries:
             assert any(entry.roles is tuple_ for tuple_ in named), entry.label
             callback = resolve(reverse(entry.url_name)).func
+            if entry.url_name == "home":
+                assert not hasattr(callback, "view_class")
+                assert not hasattr(callback, "required_roles")
+                continue
             view_roles = getattr(callback, "required_roles", None) or callback.view_class.allowed_roles
             assert entry.roles == view_roles, entry.label
 
