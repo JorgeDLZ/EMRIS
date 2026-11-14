@@ -279,6 +279,19 @@ def test_action_owner_list_shows_only_own(client, make_emergency):
     assert list(page.object_list) == [mine]
 
 
+def test_action_owner_empty_list_explains_assignment(client, make_emergency):
+    make_emergency()
+    client.force_login(make_user("omar", ACTION_OWNER))
+    url = reverse("emergencies:emergency_list")
+
+    unfiltered = client.get(url).content.decode()
+    assert "No emergencies are assigned to you yet." in unfiltered
+    assert "when an action in its plan is assigned to you" in unfiltered
+
+    filtered = client.get(url, {"q": "CAJICA"}).content.decode()
+    assert "No emergencies assigned to you match these filters." in filtered
+
+
 def test_status_change_via_post(client, make_emergency):
     emergency = make_emergency()
     operator = make_user("olga", OPERATOR)

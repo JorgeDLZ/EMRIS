@@ -59,7 +59,13 @@
     </div>
   {% else %}
     <div class="empty-state">
-      <p>{% if filtered %}No emergencies match these filters.{% else %}No emergencies yet.{% endif %}</p>
+      {% if user.can_edit_emergencies %}
+        <p>{% if filtered %}No emergencies match these filters.{% else %}No emergencies yet.{% endif %}</p>
+      {% elif filtered %}
+        <p>No emergencies assigned to you match these filters.</p>
+      {% else %}
+        <p>No emergencies are assigned to you yet. An emergency appears here when an action in its plan is assigned to you.</p>
+      {% endif %}
       {% if user.can_edit_emergencies %}
         <a class="btn btn-primary" href="{% url 'emergencies:emergency_create' %}">Report emergency</a>
       {% endif %}
