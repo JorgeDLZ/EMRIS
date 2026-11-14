@@ -71,6 +71,28 @@ python manage.py train_initial
 
 It refuses to run when models already exist. `python manage.py retrain` runs the same training synchronously, prints the decision for each component and exits with an error if a component fails.
 
+## Methodology (CRISP-ML)
+
+The project follows CRISP-ML, an evolution of CRISP-DM for machine learning projects. Its stages are iterative, and it puts particular emphasis on integrating the model into real systems and monitoring it once in use.
+
+1. **Business and data understanding.** The objective is to support prioritisation and response in risk councils with the four components above. The data are the 2025 UNGRD emergency history, the DANE DIVIPOLA municipality codes and the SGC seismicity catalog of magnitude 2.5 and above.
+2. **Data engineering.** The UNGRD file is kept as downloaded; the load commands clean it, link each record to its DIVIPOLA municipality and extract the response actions from the comments. The SGC catalog is filtered with rows unchanged and linked to municipalities. Both loads can be run again without duplicating data.
+3. **Model engineering.** The impact estimator compares logistic regression and gradient boosting, with its threshold tuned on September. Profiles use K-means, similar emergencies use k-nearest neighbors (k = 5) and municipal risk uses hierarchical agglomerative clustering (Ward). Five notebooks document the exploration and the four models.
+4. **Model evaluation.** Every model is compared with a simple baseline: the selected logistic regression reaches F1 0.51 against 0.48 for the baseline, profiles are stable across seeds (ARI 0.98) and similar emergencies reach precision at 5 of 0.94 against 0.75 for random neighbors of the same type.
+5. **Deployment.** The application runs on Render with a Supabase PostgreSQL database. The four components are trained from the database, stored as versioned models and shown inside the emergency workflow, and Excel reports export the results.
+6. **Monitoring and maintenance.** Administrators retrain the models from the interface, and a new version is activated only if it passes the quality gate. A run still running after 30 minutes is marked failed, and every version is kept so any previous one can be reactivated.
+
+References:
+
+- Schmid, S., Wurst, S. and Wirth, R. (2020). "Towards CRISP-ML(Q): A Machine Learning Process Model with Quality Assurance Methodology".
+- ML-Ops.org. "CRISP-ML(Q): The ML Lifecycle Process".
+- KDnuggets (2025). "The Machine Learning Lifecycle".
+
+## Screens
+
+- **Public landing page (`/`):** describes the project structure (problem, objectives, reference framework), the CRISP-ML methodology with what EMRIS did in each stage, the development timeline, the system modules, the models with their metrics and the references. Signed-out visitors can log in or register from it.
+- **Signed-in application:** a left sidebar whose groups show only the modules the user's role can open. The groups are Overview, Operations, Intelligence, Reference data and Administration; a group with no accessible module is hidden.
+
 ## Dashboard and reports
 
 - **Dashboard (`/dashboard/`, every role):** active emergencies with the total, the closed count, and breakdowns by status, by type, top 10 municipalities and by profile ("Profile pending" when there is none). It also shows the top 10 of the municipal risk ranking, hidden from action owners, and a seismic activity panel: the 30 days ending at the latest event of the SGC catalog, with events of M ≥ 4.0, largest first, up to 20. Action owners see only their own emergencies.
