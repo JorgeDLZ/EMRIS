@@ -2,6 +2,7 @@ from django.contrib.auth import views as auth_views
 from django.urls import path
 
 from apps.accounts import views
+from apps.accounts.forms import ThrottledAuthenticationForm
 
 app_name = "accounts"
 
@@ -11,6 +12,7 @@ urlpatterns = [
         "login/",
         auth_views.LoginView.as_view(
             template_name="accounts/login.html",
+            authentication_form=ThrottledAuthenticationForm,
             redirect_authenticated_user=True,
         ),
         name="login",

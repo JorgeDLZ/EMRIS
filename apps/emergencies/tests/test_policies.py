@@ -132,8 +132,10 @@ def test_action_owner_updates_only_own_action(make_emergency, role):
     owner = user if role not in (None, "anonymous") else None
     own = Action.objects.create(plan=plan, description="Evacuate", owner=owner)
     foreign = Action.objects.create(plan=plan, description="Shelter", owner=other)
-    assert policies.can_update_action(user, foreign) is (role in EDITORS)
+    unassigned = Action.objects.create(plan=plan, description="Supplies")
+    assert policies.can_update_action(user, foreign) is (role in MANAGERS)
     assert policies.can_update_action(user, own) is (role in EDITORS or role == ACTION_OWNER)
+    assert policies.can_update_action(user, unassigned) is (role in EDITORS)
 
 
 @pytest.mark.parametrize("role", ROLES)
@@ -156,6 +158,7 @@ def test_user_navigation_properties(db):
         user = make_user(role)
         assert user.can_edit_emergencies is (role in EDITORS)
         assert user.can_manage_resources is (role in MANAGERS)
+        assert user.can_browse_history is (role in EDITORS)
 
 
 @pytest.mark.parametrize("role", ROLES)

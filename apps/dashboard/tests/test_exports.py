@@ -248,8 +248,10 @@ def test_history_workbook_follows_filters(client, world):
     assert fills(worksheet) == [HIGHLIGHT]
 
 
-def test_action_owner_can_export_history(client, world):
+def test_history_export_follows_browse_right(client, world):
     client.force_login(make_user("owen", ACTION_OWNER))
+    assert client.get(reverse("history:export")).status_code == 403
+    client.force_login(make_user("olga", OPERATOR))
     assert client.get(reverse("history:export")).status_code == 200
 
 

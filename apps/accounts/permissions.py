@@ -47,6 +47,7 @@ def role_required(*roles: str):
                 return refusal
             return view(request, *args, **kwargs)
 
+        wrapper.required_roles = roles
         return wrapper
 
     return decorator

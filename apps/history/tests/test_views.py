@@ -140,12 +140,19 @@ def test_department_level_record(logged, world):
     assert "Department level" in logged.get(reverse("history:record_detail", args=[9])).content.decode()
 
 
-@pytest.mark.parametrize("role", [ADMINISTRATOR, RISK_MANAGER, OPERATOR, ACTION_OWNER])
-def test_every_role_can_browse(client, records, role):
+@pytest.mark.parametrize("role", [ADMINISTRATOR, RISK_MANAGER, OPERATOR])
+def test_editing_roles_can_browse(client, records, role):
     client.force_login(make_user(f"user-{role}", role))
     assert client.get(reverse("history:record_list")).status_code == 200
     assert client.get(reverse("history:record_detail", args=[1])).status_code == 200
     assert "History" in client.get(reverse("history:record_list")).content.decode()
+
+
+def test_action_owner_cannot_browse(client, records):
+    client.force_login(make_user("owner", ACTION_OWNER))
+    assert client.get(reverse("history:record_list")).status_code == 403
+    assert client.get(reverse("history:record_detail", args=[1])).status_code == 403
+    assert reverse("history:record_list") not in client.get(reverse("dashboard:index")).content.decode()
 
 
 def test_anonymous_user_goes_to_login(client, records):

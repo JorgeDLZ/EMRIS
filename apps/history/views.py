@@ -2,7 +2,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, render
 
 from apps.accounts.permissions import role_required
-from apps.accounts.roles import ALL_ROLES
+from apps.accounts.roles import CAPABILITIES
 from apps.dashboard.exports import (
     HISTORY_HEADER,
     history_rows,
@@ -17,7 +17,7 @@ from .filters import HISTORY_PAGE_SIZE, filter_records, querystring
 from .models import UngrdRecord
 
 
-@role_required(*ALL_ROLES)
+@role_required(*CAPABILITIES["browse_history"])
 def record_list(request):
     records, cleaned = filter_records(request.GET)
     page = Paginator(records, HISTORY_PAGE_SIZE).get_page(request.GET.get("page"))
@@ -34,7 +34,7 @@ def record_list(request):
     )
 
 
-@role_required(*ALL_ROLES)
+@role_required(*CAPABILITIES["browse_history"])
 def export(request):
     records, _ = filter_records(request.GET)
     return xlsx_response(
@@ -46,7 +46,7 @@ def export(request):
     )
 
 
-@role_required(*ALL_ROLES)
+@role_required(*CAPABILITIES["browse_history"])
 def record_detail(request, source_row):
     record = get_object_or_404(
         UngrdRecord.objects.select_related("emergency_type", "department", "municipality"),

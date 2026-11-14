@@ -2,7 +2,7 @@ from django.core.paginator import Paginator
 from django.shortcuts import render
 
 from apps.accounts.permissions import has_role, role_required
-from apps.accounts.roles import ALL_ROLES, EDIT_ROLES
+from apps.accounts.roles import CAPABILITIES
 from apps.emergencies.policies import visible_emergencies
 
 from .exports import (
@@ -20,13 +20,13 @@ PAGE_SIZE = 50
 TOP_SIZE = 10
 
 
-@role_required(*ALL_ROLES)
+@role_required(*CAPABILITIES["view_dashboard"])
 def index(request):
     summary = emergency_summary(visible_emergencies(request.user))
     context = {
         "summary": summary,
         "seismic": seismic_activity(),
-        "show_ranking": has_role(request.user, *EDIT_ROLES),
+        "show_ranking": has_role(request.user, *CAPABILITIES["view_risk_ranking"]),
     }
     if context["show_ranking"]:
         ranking = risk_ranking()
@@ -35,7 +35,7 @@ def index(request):
     return render(request, "dashboard/dashboard.html", context)
 
 
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["view_risk_ranking"])
 def ranking(request):
     full = risk_ranking()
     department = request.GET.get("department", "")
@@ -53,13 +53,13 @@ def ranking(request):
     )
 
 
-@role_required(*ALL_ROLES)
+@role_required(*CAPABILITIES["view_dashboard"])
 def export_emergencies(request):
     rows, highlight = emergency_rows(visible_emergencies(request.user))
     return xlsx_response("emergencies.xlsx", "Emergencies", EMERGENCY_HEADER, rows, highlight)
 
 
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["view_risk_ranking"])
 def export_ranking(request):
     ranking_data = risk_ranking(request.GET.get("department", ""))
     return xlsx_response(

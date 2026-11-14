@@ -1,8 +1,15 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import AuthenticationForm, UserCreationForm
 
 from apps.accounts.models import User
 from apps.accounts.roles import ROLE_LABELS
+from apps.accounts.throttling import (
+    LOCKED_MESSAGE,
+    clear_failures,
+    client_ip,
+    is_locked,
+    record_failure,
+)
 
 
 class RegistrationForm(UserCreationForm):
@@ -22,3 +29,23 @@ class UserRoleForm(forms.Form):
         choices=[("", "No role"), *ROLE_LABELS.items()],
         required=False,
     )
+
+
+class LoginThrottlingMixin:
+    def clean(self):
+        username = self.cleaned_data.get("username") or ""
+        ip = client_ip(self.request)
+        if is_locked(username, ip):
+            raise forms.ValidationError(LOCKED_MESSAGE, code="locked")
+        try:
+            cleaned_data = super().clean()
+        except forms.ValidationError:
+            record_failure(username, ip)
+            raise
+        if self.user_cache is not None:
+            clear_failures(username, ip)
+        return cleaned_data
+
+
+class ThrottledAuthenticationForm(LoginThrottlingMixin, AuthenticationForm):
+    pass

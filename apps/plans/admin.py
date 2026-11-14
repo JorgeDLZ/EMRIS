@@ -1,16 +1,18 @@
 from django.contrib import admin
 
+from config.admin import ReadOnlyAdmin
+
 from .models import Action, ActionPlan, Resource, ResourceAssignment
 
 
 @admin.register(ActionPlan)
-class ActionPlanAdmin(admin.ModelAdmin):
+class ActionPlanAdmin(ReadOnlyAdmin):
     list_display = ("emergency", "status", "proposed_by", "approved_by", "approved_at")
     list_filter = ("status",)
 
 
 @admin.register(Action)
-class ActionAdmin(admin.ModelAdmin):
+class ActionAdmin(ReadOnlyAdmin):
     list_display = ("description", "plan", "owner", "due_date", "status")
     list_filter = ("status",)
 
@@ -23,5 +25,5 @@ class ResourceAdmin(admin.ModelAdmin):
 
 
 @admin.register(ResourceAssignment)
-class ResourceAssignmentAdmin(admin.ModelAdmin):
+class ResourceAssignmentAdmin(ReadOnlyAdmin):
     list_display = ("plan", "resource", "quantity")

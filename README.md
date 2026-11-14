@@ -29,10 +29,12 @@ EMRIS (Emergency Management & Resource Information System) is a web application 
 |---|---|
 | `administrator` | Everything: users, catalogs, resources, emergencies, closing emergencies and approving plans |
 | `risk_manager` | Catalogs, resources, emergencies, closing emergencies and approving plans |
-| `operator` | Reports and edits emergencies, records impact and follow-up, drafts plans, updates any action and registers municipalities (pending validation) |
+| `operator` | Reports and edits emergencies, records impact and follow-up, drafts plans, updates their own or unassigned actions and registers municipalities (pending validation) |
 | `action_owner` | Sees only the emergencies where they own an action and updates their own actions |
 
 Users without a role wait for an administrator to assign one.
+
+Sign-in is throttled: after 5 failed attempts for the same username and address, or 20 from the same address, within 15 minutes, further attempts are refused until the 15 minutes pass.
 
 ## Machine learning
 
@@ -73,11 +75,11 @@ It refuses to run when models already exist. `python manage.py retrain` runs the
 
 - **Dashboard (`/dashboard/`, every role):** active emergencies with the total, the closed count, and breakdowns by status, by type, top 10 municipalities and by profile ("Profile pending" when there is none). It also shows the top 10 of the municipal risk ranking, hidden from action owners, and a seismic activity panel: the 30 days ending at the latest event of the SGC catalog, with events of M ≥ 4.0, largest first, up to 20. Action owners see only their own emergencies.
 - **Municipal risk ranking (`/dashboard/risk/`, administrators, risk managers and operators):** municipalities ordered by risk level, most severe first ("Risk level n of k"), 50 per page, filtered by department. Municipalities with insufficient history are counted, not listed. The ranking is stored with each model version at training, so a model version trained before the ranking was stored shows "The ranking appears after the next retrain." until an administrator retrains once.
-- **UNGRD history (`/history/`, every role):** browser of the historical emergencies, filtered by type, department, municipality, dates and high impact. Each record has a detail page with its impact, comments and actions.
+- **UNGRD history (`/history/`, administrators, risk managers and operators):** browser of the historical emergencies, filtered by type, department, municipality, dates and high impact. Each record has a detail page with its impact, comments and actions.
 - **Excel reports (`.xlsx`):** three styled workbooks with a bold white header on a blue fill, a frozen header row, column filters and rows highlighted in light red for high impact (the top risk level in the ranking).
   - `/dashboard/emergencies.xlsx`: the emergencies visible to the user, highlighting those estimated as high impact. Every role.
   - `/dashboard/risk.xlsx`: the municipal risk ranking, with the same department filter as the page. Not for action owners.
-  - `/history/export.xlsx`: the UNGRD history, with the same filters as the browser, highlighting high-impact records. Every role.
+  - `/history/export.xlsx`: the UNGRD history, with the same filters as the browser, highlighting high-impact records. Not for action owners.
 
 ## Notebooks
 
@@ -169,7 +171,7 @@ python -m pytest
 
 ## First administrator
 
-Run `python manage.py createsuperuser` against the production database (with `DATABASE_URL` pointing to Supabase). A superuser has full access. Additional users register themselves and have no access until an administrator assigns a role from the Users page.
+Run `python manage.py createsuperuser` against the production database (with `DATABASE_URL` pointing to Supabase). A superuser has full access and is the only kind of user who can open the Django admin (`/admin/`), where emergencies, plans, actions and the imported UNGRD and SGC records are read-only. Additional users register themselves and have no access until an administrator assigns a role from the Users page.
 
 ## Manual backup
 

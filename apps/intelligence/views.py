@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import role_required
-from apps.accounts.roles import ADMINISTRATOR
+from apps.accounts.roles import CAPABILITIES
 from apps.intelligence.models import COMPONENT_CHOICES, ModelVersion, TrainingRun
 from apps.intelligence.training import (
     RetrainInProgress,
@@ -60,7 +60,7 @@ def component_sections():
     return sections
 
 
-@role_required(ADMINISTRATOR)
+@role_required(*CAPABILITIES["manage_models"])
 def model_list(request):
     expire_stale_runs()
     return render(
@@ -74,7 +74,7 @@ def model_list(request):
     )
 
 
-@role_required(ADMINISTRATOR)
+@role_required(*CAPABILITIES["manage_models"])
 @require_POST
 def retrain(request):
     try:
@@ -90,7 +90,7 @@ def retrain(request):
     return redirect("intelligence:model_list")
 
 
-@role_required(ADMINISTRATOR)
+@role_required(*CAPABILITIES["manage_models"])
 @require_POST
 def activate(request, pk):
     version = get_object_or_404(ModelVersion.objects.defer("artifact"), pk=pk)

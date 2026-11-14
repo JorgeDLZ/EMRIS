@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from config.admin import ReadOnlyAdmin
+
 from .models import Emergency, EmergencyType, Impact, StatusLog
 
 
@@ -11,16 +13,16 @@ class EmergencyTypeAdmin(admin.ModelAdmin):
 
 
 @admin.register(Emergency)
-class EmergencyAdmin(admin.ModelAdmin):
+class EmergencyAdmin(ReadOnlyAdmin):
     list_display = ("emergency_type", "municipality", "status", "occurred_at")
     list_filter = ("status",)
 
 
 @admin.register(Impact)
-class ImpactAdmin(admin.ModelAdmin):
+class ImpactAdmin(ReadOnlyAdmin):
     list_display = ("emergency", "deceased", "people_affected", "updated_at")
 
 
 @admin.register(StatusLog)
-class StatusLogAdmin(admin.ModelAdmin):
+class StatusLogAdmin(ReadOnlyAdmin):
     list_display = ("emergency", "status", "previous_status", "author", "created_at")

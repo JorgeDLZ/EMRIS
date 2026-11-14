@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import role_required
-from apps.accounts.roles import ADMINISTRATOR, OPERATOR, RISK_MANAGER
+from apps.accounts.roles import CAPABILITIES
 from ml.text import normalize_name
 
 from .forms import MunicipalityForm
@@ -20,7 +20,7 @@ from .services import (
 PAGE_SIZE = 50
 
 
-@role_required(ADMINISTRATOR, RISK_MANAGER, OPERATOR)
+@role_required(*CAPABILITIES["register_municipalities"])
 def municipality_list(request):
     municipalities = Municipality.objects.visible_to(request.user).select_related("department")
 
@@ -47,7 +47,7 @@ def municipality_list(request):
     )
 
 
-@role_required(ADMINISTRATOR, RISK_MANAGER, OPERATOR)
+@role_required(*CAPABILITIES["register_municipalities"])
 def municipality_create(request):
     form = MunicipalityForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -73,7 +73,7 @@ def municipality_create(request):
     return render(request, "places/municipality_form.html", {"form": form, "similar": []})
 
 
-@role_required(ADMINISTRATOR, RISK_MANAGER)
+@role_required(*CAPABILITIES["validate_municipalities"])
 def municipality_pending(request):
     pending = Municipality.objects.filter(validation=Municipality.PENDING).select_related(
         "department", "created_by"
@@ -82,7 +82,7 @@ def municipality_pending(request):
 
 
 @require_POST
-@role_required(ADMINISTRATOR, RISK_MANAGER)
+@role_required(*CAPABILITIES["validate_municipalities"])
 def municipality_approve(request, pk):
     municipality = get_object_or_404(Municipality, pk=pk)
     if municipality.validation == Municipality.PENDING:
@@ -94,7 +94,7 @@ def municipality_approve(request, pk):
 
 
 @require_POST
-@role_required(ADMINISTRATOR, RISK_MANAGER)
+@role_required(*CAPABILITIES["validate_municipalities"])
 def municipality_reject(request, pk):
     municipality = get_object_or_404(Municipality, pk=pk)
     try:

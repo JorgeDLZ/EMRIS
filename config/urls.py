@@ -1,7 +1,11 @@
 from django.contrib import admin
 from django.urls import include, path
 
+from config.admin import ThrottledAdminAuthenticationForm, superuser_only
 from config.views import health, home
+
+admin.site.has_permission = superuser_only
+admin.site.login_form = ThrottledAdminAuthenticationForm
 
 urlpatterns = [
     path("admin/", admin.site.urls),

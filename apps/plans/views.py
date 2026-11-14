@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import role_required
-from apps.accounts.roles import ALL_ROLES, EDIT_ROLES, MANAGE_ROLES
+from apps.accounts.roles import CAPABILITIES
 from apps.emergencies.policies import (
     can_approve_plan,
     can_edit_plan,
@@ -62,7 +62,9 @@ def _visible_assignment(user, pk):
 
 
 def _can_suggest(user, emergency, plan):
-    return can_start_plan(user, emergency) or (plan is not None and can_edit_plan(user, plan))
+    if plan is not None:
+        return can_edit_plan(user, plan)
+    return can_start_plan(user, emergency)
 
 
 def _split_reference(reference):
@@ -147,7 +149,7 @@ def _detail_context(user, emergency, plan, assignment_form=None):
     return context
 
 
-@role_required(*ALL_ROLES)
+@role_required(*CAPABILITIES["view_emergencies"])
 def plan_detail(request, emergency_pk):
     emergency = _visible_emergency(request.user, emergency_pk)
     plan = getattr(emergency, "action_plan", None)
@@ -155,7 +157,7 @@ def plan_detail(request, emergency_pk):
 
 
 @require_POST
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["start_plans"])
 def plan_start(request, emergency_pk):
     emergency = _visible_emergency(request.user, emergency_pk)
     if not can_start_plan(request.user, emergency):
@@ -170,7 +172,7 @@ def plan_start(request, emergency_pk):
 
 
 @require_POST
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["start_plans"])
 def plan_suggest(request, emergency_pk):
     emergency = _visible_emergency(request.user, emergency_pk)
     if not _can_suggest(request.user, emergency, getattr(emergency, "action_plan", None)):
@@ -183,7 +185,7 @@ def plan_suggest(request, emergency_pk):
 
 
 @require_POST
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["start_plans"])
 def suggested_action_add(request, emergency_pk):
     emergency = _visible_emergency(request.user, emergency_pk)
     labels = dict(ACTION_CODE_CHOICES)
@@ -208,7 +210,7 @@ def suggested_action_add(request, emergency_pk):
 
 
 @require_POST
-@role_required(*MANAGE_ROLES)
+@role_required(*CAPABILITIES["approve_plans"])
 def plan_approve(request, emergency_pk):
     emergency = _visible_emergency(request.user, emergency_pk)
     plan = _existing_plan(emergency)
@@ -223,7 +225,7 @@ def plan_approve(request, emergency_pk):
     return redirect("plans:plan_detail", emergency_pk=emergency.pk)
 
 
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["start_plans"])
 def action_create(request, emergency_pk):
     emergency = _visible_emergency(request.user, emergency_pk)
     plan = _existing_plan(emergency)
@@ -243,7 +245,7 @@ def action_create(request, emergency_pk):
     )
 
 
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["start_plans"])
 def action_edit(request, pk):
     action = _visible_action(request.user, pk)
     emergency = action.plan.emergency
@@ -264,7 +266,7 @@ def action_edit(request, pk):
 
 
 @require_POST
-@role_required(*ALL_ROLES)
+@role_required(*CAPABILITIES["update_actions"])
 def action_advance(request, pk):
     action = _visible_action(request.user, pk)
     if not can_update_action(request.user, action):
@@ -279,7 +281,7 @@ def action_advance(request, pk):
 
 
 @require_POST
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["start_plans"])
 def assignment_create(request, emergency_pk):
     emergency = _visible_emergency(request.user, emergency_pk)
     plan = _existing_plan(emergency)
@@ -302,7 +304,7 @@ def assignment_create(request, emergency_pk):
 
 
 @require_POST
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["start_plans"])
 def assignment_remove(request, pk):
     assignment = _visible_assignment(request.user, pk)
     if not can_edit_plan(request.user, assignment.plan):
@@ -316,7 +318,7 @@ def assignment_remove(request, pk):
     return redirect("plans:plan_detail", emergency_pk=assignment.plan.emergency_id)
 
 
-@role_required(*MANAGE_ROLES)
+@role_required(*CAPABILITIES["manage_resources"])
 def resource_list(request):
     rows = []
     for resource in Resource.objects.all():
@@ -326,7 +328,7 @@ def resource_list(request):
     return render(request, "plans/resource_list.html", {"rows": rows})
 
 
-@role_required(*MANAGE_ROLES)
+@role_required(*CAPABILITIES["manage_resources"])
 def resource_create(request):
     form = ResourceForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -336,7 +338,7 @@ def resource_create(request):
     return render(request, "plans/resource_form.html", {"form": form, "resource": None})
 
 
-@role_required(*MANAGE_ROLES)
+@role_required(*CAPABILITIES["manage_resources"])
 def resource_edit(request, pk):
     resource = get_object_or_404(Resource, pk=pk)
     form = ResourceForm(request.POST or None, instance=resource)

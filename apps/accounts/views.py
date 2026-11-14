@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from apps.accounts.forms import RegistrationForm, UserRoleForm
 from apps.accounts.models import User
 from apps.accounts.permissions import role_required
-from apps.accounts.roles import ADMINISTRATOR, get_role
+from apps.accounts.roles import CAPABILITIES, get_role
 from apps.accounts.services import RoleChangeError, set_role
 
 
@@ -28,13 +28,13 @@ def pending(request):
     return render(request, "accounts/pending.html")
 
 
-@role_required(ADMINISTRATOR)
+@role_required(*CAPABILITIES["manage_users"])
 def user_list(request):
     users = User.objects.order_by("username")
     return render(request, "accounts/user_list.html", {"users": users})
 
 
-@role_required(ADMINISTRATOR)
+@role_required(*CAPABILITIES["manage_users"])
 def user_role(request, pk):
     target = get_object_or_404(User, pk=pk)
     form = UserRoleForm(request.POST or None, initial={"role": get_role(target) or ""})

@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import role_required
-from apps.accounts.roles import ADMINISTRATOR, ALL_ROLES, EDIT_ROLES, RISK_MANAGER
+from apps.accounts.roles import CAPABILITIES
 from apps.intelligence.models import IMPACT, MUNICIPAL_RISK, PROFILES, Prediction
 from apps.intelligence.services import latest_predictions, predict_on_save, predict_profile
 from apps.plans.models import DONE
@@ -84,12 +84,12 @@ def _editable_emergency(user, pk):
     return emergency
 
 
-@role_required(ADMINISTRATOR, RISK_MANAGER)
+@role_required(*CAPABILITIES["manage_catalogs"])
 def type_list(request):
     return render(request, "emergencies/type_list.html", {"types": EmergencyType.objects.all()})
 
 
-@role_required(ADMINISTRATOR, RISK_MANAGER)
+@role_required(*CAPABILITIES["manage_catalogs"])
 def type_create(request):
     form = EmergencyTypeForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
@@ -99,7 +99,7 @@ def type_create(request):
     return render(request, "emergencies/type_form.html", {"form": form, "emergency_type": None})
 
 
-@role_required(ADMINISTRATOR, RISK_MANAGER)
+@role_required(*CAPABILITIES["manage_catalogs"])
 def type_edit(request, pk):
     emergency_type = get_object_or_404(EmergencyType, pk=pk)
     form = EmergencyTypeForm(request.POST or None, instance=emergency_type)
@@ -110,7 +110,7 @@ def type_edit(request, pk):
     return render(request, "emergencies/type_form.html", {"form": form, "emergency_type": emergency_type})
 
 
-@role_required(*ALL_ROLES)
+@role_required(*CAPABILITIES["view_emergencies"])
 def emergency_list(request):
     emergencies = visible_emergencies(request.user).select_related(
         "emergency_type", "municipality__department"
@@ -159,7 +159,7 @@ def emergency_list(request):
     )
 
 
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["edit_emergencies"])
 def emergency_create(request):
     form = EmergencyForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
@@ -170,7 +170,7 @@ def emergency_create(request):
     return render(request, "emergencies/emergency_form.html", {"form": form, "emergency": None})
 
 
-@role_required(*ALL_ROLES)
+@role_required(*CAPABILITIES["view_emergencies"])
 def emergency_detail(request, pk):
     emergency = get_object_or_404(
         visible_emergencies(request.user).select_related(
@@ -237,7 +237,7 @@ def _save_emergency_fields(user, emergency, form):
     locked.save(update_fields=update_fields)
 
 
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["edit_emergencies"])
 def emergency_edit(request, pk):
     emergency = _editable_emergency(request.user, pk)
     form = EmergencyForm(request.POST or None, instance=emergency, user=request.user)
@@ -251,7 +251,7 @@ def emergency_edit(request, pk):
     return render(request, "emergencies/emergency_form.html", {"form": form, "emergency": emergency})
 
 
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["edit_emergencies"])
 def impact_edit(request, pk):
     emergency = _editable_emergency(request.user, pk)
     form = ImpactForm(
@@ -270,7 +270,7 @@ def impact_edit(request, pk):
 
 
 @require_POST
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["edit_emergencies"])
 def status_change(request, pk):
     emergency = get_object_or_404(visible_emergencies(request.user), pk=pk)
     status = request.POST.get("status", "")
@@ -286,7 +286,7 @@ def status_change(request, pk):
 
 
 @require_POST
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["edit_emergencies"])
 def note_add(request, pk):
     emergency = _editable_emergency(request.user, pk)
     try:
@@ -299,7 +299,7 @@ def note_add(request, pk):
 
 
 @require_POST
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["edit_emergencies"])
 def seismic_confirm(request, pk):
     emergency = _editable_emergency(request.user, pk)
     try:
@@ -315,7 +315,7 @@ def seismic_confirm(request, pk):
 
 
 @require_POST
-@role_required(*EDIT_ROLES)
+@role_required(*CAPABILITIES["edit_emergencies"])
 def seismic_clear(request, pk):
     emergency = _editable_emergency(request.user, pk)
     try:
