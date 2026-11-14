@@ -27,20 +27,22 @@ def _key(username: str) -> str:
     return username.lower()[:USERNAME_MAX_LENGTH]
 
 
-def _recent_failures(ip: str):
-    return LoginAttempt.objects.filter(ip_address=ip, attempted_at__gte=timezone.now() - WINDOW)
+def reserve_attempt(username: str, ip: str) -> LoginAttempt | None:
+    now = timezone.now()
+    LoginAttempt.objects.filter(attempted_at__lt=now - WINDOW).delete()
+    attempt = LoginAttempt.objects.create(username=_key(username), ip_address=ip)
+    recent = LoginAttempt.objects.filter(ip_address=ip, attempted_at__gte=now - WINDOW)
+    if (
+        recent.count() > MAX_FAILURES_PER_IP
+        or recent.filter(username=attempt.username).count() > MAX_FAILURES_PER_USER_IP
+    ):
+        attempt.delete()
+        return None
+    return attempt
 
 
-def is_locked(username: str, ip: str) -> bool:
-    recent = _recent_failures(ip)
-    if recent.count() >= MAX_FAILURES_PER_IP:
-        return True
-    return recent.filter(username=_key(username)).count() >= MAX_FAILURES_PER_USER_IP
-
-
-def record_failure(username: str, ip: str) -> None:
-    LoginAttempt.objects.filter(attempted_at__lt=timezone.now() - WINDOW).delete()
-    LoginAttempt.objects.create(username=_key(username), ip_address=ip)
+def release_attempt(attempt: LoginAttempt) -> None:
+    attempt.delete()
 
 
 def clear_failures(username: str, ip: str) -> None:

@@ -33,14 +33,65 @@ def named_patterns(patterns, namespace=""):
             yield f"{namespace}{pattern.name}", pattern.callback
 
 
-def test_capabilities_cover_every_view():
-    allowed = set(CAPABILITIES.values())
-    uncovered = [
-        name
+VIEW_CAPABILITY = {
+    "accounts:user_list": "manage_users",
+    "accounts:user_role": "manage_users",
+    "dashboard:index": "view_dashboard",
+    "dashboard:export_emergencies": "view_dashboard",
+    "dashboard:ranking": "view_risk_ranking",
+    "dashboard:export_ranking": "view_risk_ranking",
+    "emergencies:emergency_list": "view_emergencies",
+    "emergencies:emergency_detail": "view_emergencies",
+    "emergencies:emergency_create": "edit_emergencies",
+    "emergencies:emergency_edit": "edit_emergencies",
+    "emergencies:impact_edit": "edit_emergencies",
+    "emergencies:status_change": "edit_emergencies",
+    "emergencies:note_add": "edit_emergencies",
+    "emergencies:seismic_confirm": "edit_emergencies",
+    "emergencies:seismic_clear": "edit_emergencies",
+    "emergencies:type_list": "manage_catalogs",
+    "emergencies:type_create": "manage_catalogs",
+    "emergencies:type_edit": "manage_catalogs",
+    "history:record_list": "browse_history",
+    "history:record_detail": "browse_history",
+    "history:export": "browse_history",
+    "intelligence:model_list": "manage_models",
+    "intelligence:retrain": "manage_models",
+    "intelligence:activate": "manage_models",
+    "places:municipality_list": "register_municipalities",
+    "places:municipality_create": "register_municipalities",
+    "places:municipality_pending": "validate_municipalities",
+    "places:municipality_approve": "validate_municipalities",
+    "places:municipality_reject": "validate_municipalities",
+    "plans:plan_detail": "view_emergencies",
+    "plans:plan_start": "start_plans",
+    "plans:plan_suggest": "start_plans",
+    "plans:suggested_action_add": "start_plans",
+    "plans:action_create": "start_plans",
+    "plans:action_edit": "start_plans",
+    "plans:assignment_create": "start_plans",
+    "plans:assignment_remove": "start_plans",
+    "plans:plan_approve": "approve_plans",
+    "plans:action_advance": "update_actions",
+    "plans:resource_list": "manage_resources",
+    "plans:resource_create": "manage_resources",
+    "plans:resource_edit": "manage_resources",
+}
+
+
+def test_every_view_has_its_exact_capability():
+    protected = {
+        name: callback
         for name, callback in named_patterns(get_resolver().url_patterns)
-        if name not in PUBLIC_VIEWS and getattr(callback, "required_roles", None) not in allowed
+        if name not in PUBLIC_VIEWS
+    }
+    assert set(protected) == set(VIEW_CAPABILITY)
+    wrong = [
+        name
+        for name, callback in protected.items()
+        if getattr(callback, "required_roles", None) != CAPABILITIES[VIEW_CAPABILITY[name]]
     ]
-    assert uncovered == []
+    assert wrong == []
 
 
 @pytest.fixture

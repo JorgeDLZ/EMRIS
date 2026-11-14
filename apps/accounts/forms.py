@@ -7,8 +7,8 @@ from apps.accounts.throttling import (
     LOCKED_MESSAGE,
     clear_failures,
     client_ip,
-    is_locked,
-    record_failure,
+    release_attempt,
+    reserve_attempt,
 )
 
 
@@ -35,14 +35,16 @@ class LoginThrottlingMixin:
     def clean(self):
         username = self.cleaned_data.get("username") or ""
         ip = client_ip(self.request)
-        if is_locked(username, ip):
+        attempt = reserve_attempt(username, ip)
+        if attempt is None:
             raise forms.ValidationError(LOCKED_MESSAGE, code="locked")
         try:
             cleaned_data = super().clean()
         except forms.ValidationError:
-            if self.user_cache is None:
-                record_failure(username, ip)
+            if self.user_cache is not None:
+                release_attempt(attempt)
             raise
+        release_attempt(attempt)
         if self.user_cache is not None:
             clear_failures(username, ip)
         return cleaned_data

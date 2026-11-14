@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from apps.accounts.models import LoginAttempt, User
 from apps.accounts.roles import OPERATOR
-from apps.accounts.throttling import LOCKED_MESSAGE, client_ip
+from apps.accounts.throttling import LOCKED_MESSAGE, client_ip, release_attempt, reserve_attempt
 
 PASSWORD = "pass-12345"
 IP_1 = "10.0.0.1"
@@ -163,3 +163,33 @@ def test_admin_login_is_throttled(client, db):
     response = client.post(url, {"username": "root", "password": PASSWORD}, REMOTE_ADDR=IP_1)
     assert LOCKED_MESSAGE in response.content.decode()
     assert not signed_in(client)
+
+
+def test_reserve_counts_in_flight_attempts(db):
+    for _ in range(4):
+        assert reserve_attempt("ana", IP_1) is not None
+    assert reserve_attempt("ana", IP_1) is not None
+    assert reserve_attempt("ana", IP_1) is None
+    assert LoginAttempt.objects.filter(username="ana").count() == 5
+
+
+def test_reserve_counts_in_flight_attempts_per_ip(db):
+    for number in range(20):
+        assert reserve_attempt(f"user-{number}", IP_1) is not None
+    assert reserve_attempt("someone-else", IP_1) is None
+    assert reserve_attempt("someone-else", IP_2) is not None
+
+
+def test_released_attempt_is_not_counted(db):
+    for _ in range(4):
+        reserve_attempt("ana", IP_1)
+    release_attempt(reserve_attempt("ana", IP_1))
+    assert LoginAttempt.objects.filter(username="ana").count() == 4
+    assert reserve_attempt("ana", IP_1) is not None
+
+
+def test_successful_sign_in_leaves_no_attempts(client, db):
+    make_user("ana")
+    fail(client, "ana", 4)
+    assert attempt(client, "ana", PASSWORD).status_code == 302
+    assert not LoginAttempt.objects.filter(username="ana").exists()
