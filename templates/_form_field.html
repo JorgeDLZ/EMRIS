@@ -1,9 +1,14 @@
-<div class="form-field">
-  {{ field.label_tag }}
-  {{ field }}
+<div class="form-field{% if field.widget_type == "checkbox" %} form-field-check{% endif %}">
+  {% if field.widget_type == "checkbox" %}
+    {{ field }}
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {% else %}
+    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field }}
+  {% endif %}
   {% if field.help_text %}<span class="helptext" id="{{ field.auto_id }}_helptext">{{ field.help_text|safe }}</span>{% endif %}
   {% if field.errors %}
-    <div class="field-errors" id="{{ field.auto_id }}_error" role="alert">
+    <div class="field-errors" role="alert">
       {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
     </div>
   {% endif %}

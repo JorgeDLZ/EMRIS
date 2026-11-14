@@ -27,8 +27,8 @@
         <div class="sidebar-groups">
           {% for group in nav_groups %}
             <section>
-              <h2 class="sidebar-heading">{{ group.label }}</h2>
-              <ul class="sidebar-list">
+              <p class="sidebar-heading" id="nav-group-{{ forloop.counter }}">{{ group.label }}</p>
+              <ul class="sidebar-list" aria-labelledby="nav-group-{{ forloop.counter }}">
                 {% for item in group.items %}
                   <li><a class="sidebar-link" href="{{ item.url }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.label }}</a></li>
                 {% endfor %}

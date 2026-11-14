@@ -17,13 +17,13 @@
       <h2>{{ section.label }}</h2>
       {% if section.active %}
         <p>
-          Active: {{ section.active }} — {{ section.active.primary_metric }} {{ section.active.score|floatformat:3 }}
+          Active: {{ section.active }}
         </p>
         <ul class="bar-list">
           <li><span>{{ section.active.primary_metric }}</span><span class="bar-track"><span class="bar w-{{ section.score_step }}"></span></span><span>{{ section.active.score|floatformat:3 }}</span></li>
         </ul>
         <p>
-          Trained on {{ section.active.trained_on.rows }} rows,
+          Trained on {{ section.active.trained_on.rows }} row{{ section.active.trained_on.rows|pluralize }},
           {{ section.active.trained_on.start }} to {{ section.active.trained_on.end }}
         </p>
         {% if section.metrics %}

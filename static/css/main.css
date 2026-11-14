@@ -17,7 +17,6 @@
   --danger-text: #9b1c1c;
   --radius: 2px;
   --radius-pill: 9999px;
-  --focus-ring: 0 0 0 4px var(--verdant);
   --font: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -49,9 +48,14 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid transparent;
-  box-shadow: var(--focus-ring);
+  outline: 2px solid var(--spruce-900);
+  outline-offset: 2px;
+  box-shadow: none;
 }
+.sidebar a:focus-visible,
+.public-header a:focus-visible,
+.landing-hero a:focus-visible,
+.skip-link:focus-visible { outline-color: var(--verdant); }
 
 .skip-link {
   position: absolute;
@@ -64,6 +68,7 @@ textarea:focus-visible {
   z-index: 10;
 }
 .skip-link:focus { top: 16px; }
+.skip-link:hover { color: var(--white); }
 
 .app-shell { display: grid; grid-template-columns: 17rem 1fr; min-height: 100vh; }
 .app-main { min-width: 0; }
@@ -107,7 +112,6 @@ textarea:focus-visible {
 }
 .sidebar-link:hover { background: var(--spruce-700); }
 .sidebar-link[aria-current="page"] { background: var(--spruce-700); font-weight: 600; box-shadow: inset 3px 0 0 var(--verdant); }
-.sidebar-link:focus-visible { outline: 2px solid transparent; box-shadow: var(--focus-ring); }
 .sidebar-action { display: block; text-align: center; }
 .sidebar-user { display: grid; gap: 4px; padding-top: 16px; border-top: 1px solid var(--spruce-700); }
 .sidebar-username { margin: 0; font-weight: 600; }
@@ -166,6 +170,7 @@ textarea:focus-visible {
 .landing-section ul { margin: 0 0 12px; padding-left: 24px; }
 .landing-section li { margin-bottom: 8px; }
 .landing-section .table-wrap { margin-bottom: 24px; }
+.landing-references { font-size: 0.95rem; color: var(--spruce-mist); }
 .landing-contents { columns: 2 16rem; }
 .landing-in-emris { margin-top: 16px; border-left: 4px solid var(--verdant); }
 .landing-in-emris h3 { margin-top: 0; }
@@ -262,6 +267,12 @@ button {
 button:hover { color: var(--spruce-900); border-color: var(--spruce-900); }
 
 .btn-primary { background: var(--verdant); color: var(--spruce-900); }
+.btn:focus-visible,
+button:focus-visible { outline: 3px solid var(--spruce-900); outline-offset: 2px; box-shadow: none; }
+.sidebar .btn:focus-visible,
+.sidebar button:focus-visible,
+.public-header .btn:focus-visible,
+.landing-hero .btn:focus-visible { outline-color: var(--verdant); }
 
 .btn-secondary { background: transparent; border-color: var(--spruce-700); color: var(--spruce-700); }
 .btn-secondary:hover { background: var(--spruce-700); color: var(--white); }
@@ -283,6 +294,10 @@ button:hover { color: var(--spruce-900); border-color: var(--spruce-900); }
 
 .form-field { margin-bottom: 16px; }
 .form-field label { display: block; margin-bottom: 4px; font-weight: 500; }
+.form-field-check { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.form-field-check label { display: inline; margin-bottom: 0; }
+.form-field-check .helptext,
+.form-field-check .field-errors { flex-basis: 100%; }
 .form-field .helptext { display: block; margin-top: 4px; color: var(--spruce-mist); font-size: 0.875rem; }
 
 input[type="text"],

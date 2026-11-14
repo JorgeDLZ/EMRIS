@@ -117,7 +117,7 @@ def test_detail_shows_impact_comments_and_actions(logged, world):
     assert "A-7" in html
     assert "Deceased" in html and "Hectares" in html
     assert "<td>2.5</td>" in html
-    assert 'High impact: <span class="badge badge-danger">' in html
+    assert "High impact: Yes" in html
     assert "line one<br>line two" in html
     assert "Clear and reopen roads" in html
     assert "mystery_code" in html

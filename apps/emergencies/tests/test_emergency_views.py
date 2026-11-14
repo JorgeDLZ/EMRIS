@@ -650,12 +650,13 @@ def test_form_errors_next_to_field(client, medellin, flood):
     field = html.split('name="occurred_at"')[1].split("</div>")[0]
     assert 'class="field-error"' in field
     assert "The date cannot be in the future." in field
-    assert 'aria-invalid="true"' in html
+    assert re.search(r'<input[^>]*name="occurred_at"[^>]*aria-invalid="true"', html)
 
 
 def test_emergency_list_empty_state(client, db):
     client.force_login(make_user("olga", OPERATOR))
     html = client.get(reverse("emergencies:emergency_list")).content.decode()
-    assert "No emergencies match these filters." in html
-    assert "Report emergency" in html
-    assert reverse("emergencies:emergency_create") in html
+    block = html.split('class="empty-state"')[1].split("</div>")[0]
+    assert "No emergencies match these filters." in block
+    assert "Report emergency" in block
+    assert f'href="{reverse("emergencies:emergency_create")}"' in block
