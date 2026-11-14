@@ -145,7 +145,7 @@ def test_editing_roles_can_browse(client, records, role):
     client.force_login(make_user(f"user-{role}", role))
     assert client.get(reverse("history:record_list")).status_code == 200
     assert client.get(reverse("history:record_detail", args=[1])).status_code == 200
-    assert "History" in client.get(reverse("history:record_list")).content.decode()
+    assert "UNGRD history" in client.get(reverse("history:record_list")).content.decode()
 
 
 def test_action_owner_cannot_browse(client, records):

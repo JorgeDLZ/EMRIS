@@ -68,6 +68,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "config.navigation.navigation",
             ],
         },
     },
@@ -109,7 +110,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.User"
 LOGIN_URL = "accounts:login"
-LOGIN_REDIRECT_URL = "home"
+LOGIN_REDIRECT_URL = "dashboard:index"
 LOGOUT_REDIRECT_URL = "accounts:login"
 
 INTELLIGENCE_RUN_IN_BACKGROUND = True
