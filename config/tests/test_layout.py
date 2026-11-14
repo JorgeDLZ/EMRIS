@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from django.conf import settings
@@ -9,6 +10,38 @@ from apps.accounts.models import User
 from apps.accounts.roles import ADMINISTRATOR, OPERATOR
 
 TEMPLATES_DIR = Path(settings.BASE_DIR) / "templates"
+STYLESHEET = Path(settings.BASE_DIR) / "static" / "css" / "main.css"
+
+
+def winning_display(element: str, classes: set[str], ancestors: set[str]) -> str:
+    css = re.sub(r"/\*.*?\*/", "", STYLESHEET.read_text(encoding="utf-8"), flags=re.S)
+    css = re.sub(r"@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}", "", css)
+    candidates = []
+    for index, (selectors, body) in enumerate(re.findall(r"([^{}]+)\{([^{}]*)\}", css)):
+        display = re.search(r"(?:^|;)\s*display\s*:\s*([^;]+)", body)
+        if not display:
+            continue
+        for selector in selectors.split(","):
+            if ":" in selector:
+                continue
+            compounds = re.split(r"\s*>\s*|\s+", selector.strip())
+            parsed = [re.match(r"([a-z]*)((?:\.[\w-]+)*)$", compound) for compound in compounds]
+            if not all(parsed):
+                continue
+            *outer, target = [(match.group(1), set(match.group(2).split(".")) - {""}) for match in parsed]
+            if target[0] not in ("", element) or not target[1] <= classes:
+                continue
+            if any(tag or not names <= ancestors for tag, names in outer):
+                continue
+            weight = sum(len(names) for _, names in outer) + len(target[1])
+            elements = 1 if target[0] else 0
+            candidates.append(((weight, elements, index), display.group(1).strip()))
+    return max(candidates)[1]
+
+
+def test_menu_toggle_is_hidden_outside_the_phone_layout():
+    toggle = winning_display("button", {"btn", "btn-secondary", "menu-toggle"}, {"app-shell", "js"})
+    assert toggle == "none"
 
 
 def test_no_inline_styles_in_templates():
