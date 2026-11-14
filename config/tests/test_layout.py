@@ -149,3 +149,10 @@ def test_flash_messages_are_announced(client, db):
     )
     html = " ".join(response.content.decode().split())
     assert '<div role="status"> <ul class="messages">' in html
+
+
+def test_navigation_script_runs_before_the_body_paints():
+    head = (TEMPLATES_DIR / "base.html").read_text(encoding="utf-8").split("</head>")[0]
+    tag = re.search(r'<script[^>]*js/navigation\.js[^>]*>', head)
+    assert tag, "navigation.js must load inside <head>"
+    assert "defer" not in tag.group(0) and "async" not in tag.group(0)
