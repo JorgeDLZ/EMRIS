@@ -112,7 +112,8 @@ def test_confirm_stores_link_and_magnitude_shows(client, db, bogota, earthquake)
     assert emergency.seismic_event == event
     assert emergency.seismic_link_distance_km is not None
     content = client.get(detail_url(emergency)).content.decode()
-    assert "Magnitude: 5.3" in content
+    assert "<dt>Magnitude</dt>" in content
+    assert "<dd>5.3</dd>" in content
     assert "ev1" in content
 
 

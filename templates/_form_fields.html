@@ -1,14 +1,9 @@
 {% if form.non_field_errors %}
-  <div class="form-errors">
+  <div class="form-errors" role="alert">
     {% for error in form.non_field_errors %}<p class="field-error">{{ error }}</p>{% endfor %}
   </div>
 {% endif %}
 {% for field in form.visible_fields %}
-  <div class="form-field">
-    {{ field.label_tag }}
-    {{ field }}
-    {% if field.help_text %}<span class="helptext">{{ field.help_text|safe }}</span>{% endif %}
-    {% for error in field.errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-  </div>
+  {% include "_form_field.html" %}
 {% endfor %}
 {% for field in form.hidden_fields %}{{ field }}{% endfor %}

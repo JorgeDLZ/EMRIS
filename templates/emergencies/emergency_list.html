@@ -3,10 +3,15 @@
 {% block title %}EMRIS — Emergencies{% endblock %}
 
 {% block content %}
-  <h1>Emergencies</h1>
+  <div class="page-header">
+    <h1>Emergencies</h1>
+    {% if user.can_edit_emergencies %}
+      <a class="btn btn-primary" href="{% url 'emergencies:emergency_create' %}">Report emergency</a>
+    {% endif %}
+  </div>
   {% include "_messages.html" %}
-  <form method="get" class="card">
-    <p>
+  <form method="get" class="card filter-bar">
+    <div class="form-field">
       <label for="status">Status</label>
       <select name="status" id="status">
         <option value="">All statuses</option>
@@ -14,8 +19,8 @@
           <option value="{{ value }}"{% if status == value %} selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
-    </p>
-    <p>
+    </div>
+    <div class="form-field">
       <label for="type">Type</label>
       <select name="type" id="type">
         <option value="">All types</option>
@@ -23,39 +28,47 @@
           <option value="{{ item.pk }}"{% if type_id == item.pk|stringformat:"s" %} selected{% endif %}>{{ item.name }}</option>
         {% endfor %}
       </select>
-    </p>
-    <p>
+    </div>
+    <div class="form-field">
       <label for="q">Municipality</label>
       <input type="text" name="q" id="q" value="{{ query }}">
-    </p>
-    <button type="submit">Search</button>
+    </div>
+    <div class="form-field">
+      <button type="submit" class="btn btn-primary">Search</button>
+    </div>
   </form>
-  {% if user.can_edit_emergencies %}
-    <p><a href="{% url 'emergencies:emergency_create' %}">Report an emergency</a></p>
+  {% if page.object_list %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Type</th><th>Municipality</th><th>Status</th><th>Priority</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for item in page %}
+            <tr>
+              <td>{{ item.occurred_at|date:"Y-m-d H:i" }}</td>
+              <td>{{ item.emergency_type.name }}</td>
+              <td>{{ item.municipality.name }} ({{ item.municipality.department.name }})</td>
+              <td>{% include "_status_badge.html" with kind="emergency" value=item.status label=item.get_status_display %}</td>
+              <td>{% if item.priority is not None %}{% widthratio item.priority 1 100 %} %{% else %}—{% endif %}</td>
+              <td><a href="{% url 'emergencies:emergency_detail' item.pk %}">View</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <p>No emergencies match these filters.</p>
+      {% if user.can_edit_emergencies %}
+        <a class="btn btn-primary" href="{% url 'emergencies:emergency_create' %}">Report emergency</a>
+      {% endif %}
+    </div>
   {% endif %}
-  <table>
-    <thead>
-      <tr><th>Date</th><th>Type</th><th>Municipality</th><th>Status</th><th>Priority</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for item in page %}
-        <tr>
-          <td>{{ item.occurred_at|date:"Y-m-d H:i" }}</td>
-          <td>{{ item.emergency_type.name }}</td>
-          <td>{{ item.municipality.name }} ({{ item.municipality.department.name }})</td>
-          <td>{{ item.get_status_display }}</td>
-          <td>{% if item.priority is not None %}{% widthratio item.priority 1 100 %} %{% else %}—{% endif %}</td>
-          <td><a href="{% url 'emergencies:emergency_detail' item.pk %}">View</a></td>
-        </tr>
-      {% empty %}
-        <tr><td colspan="6">No emergencies found.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
   {% if page.has_other_pages %}
-    <p>
+    <p class="pager">
       {% if page.has_previous %}<a href="?status={{ status }}&amp;type={{ type_id }}&amp;q={{ query|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
-      Page {{ page.number }} of {{ page.paginator.num_pages }}
+      <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
       {% if page.has_next %}<a href="?status={{ status }}&amp;type={{ type_id }}&amp;q={{ query|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
     </p>
   {% endif %}

@@ -1,0 +1,7 @@
+{% if kind == "emergency" %}
+  <span class="badge {% if value == "reported" %}badge-info{% elif value == "in_response" %}badge-warning{% elif value == "controlled" %}badge-success{% else %}badge-neutral{% endif %}">{{ label }}</span>
+{% elif kind == "action" %}
+  <span class="badge {% if value == "in_progress" %}badge-info{% elif value == "done" %}badge-success{% else %}badge-neutral{% endif %}">{{ label }}</span>
+{% elif kind == "plan" %}
+  <span class="badge {% if value == "approved" %}badge-success{% else %}badge-neutral{% endif %}">{{ label }}</span>
+{% endif %}

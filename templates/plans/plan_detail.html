@@ -3,152 +3,177 @@
 {% block title %}EMRIS — Action plan{% endblock %}
 
 {% block content %}
-  <h1>Action plan</h1>
+  <div class="page-header">
+    <div>
+      <h1>Action plan</h1>
+      <p>{{ emergency.emergency_type.name }} in {{ emergency.municipality.name }} ({{ emergency.municipality.department.name }}), {{ emergency.occurred_at|date:"Y-m-d H:i" }}</p>
+    </div>
+  </div>
   {% include "_messages.html" %}
-  <p>{{ emergency.emergency_type.name }} in {{ emergency.municipality.name }} ({{ emergency.municipality.department.name }}), {{ emergency.occurred_at|date:"Y-m-d H:i" }}</p>
 
-  {% if not plan %}
-    <section class="card">
-      <p>No action plan yet.</p>
-      {% if can_start %}
-        <form method="post" action="{% url 'plans:plan_start' emergency.pk %}">
-          {% csrf_token %}
-          <button type="submit">Start the plan</button>
-        </form>
-      {% endif %}
-    </section>
-  {% else %}
-    <section class="card">
-      <h2>Status: {{ plan.get_status_display }}</h2>
-      {% if can_approve %}
-        <form method="post" action="{% url 'plans:plan_approve' emergency.pk %}">
-          {% csrf_token %}
-          <button type="submit">Approve the plan</button>
-        </form>
-      {% endif %}
-    </section>
+  <div class="card-stack">
+    {% if not plan %}
+      <section class="card">
+        <p>No action plan yet.</p>
+        {% if can_start %}
+          <form method="post" class="inline-form" action="{% url 'plans:plan_start' emergency.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Start the plan</button>
+          </form>
+        {% endif %}
+      </section>
+    {% else %}
+      <section class="card">
+        <h2>Status: {% include "_status_badge.html" with kind="plan" value=plan.status label=plan.get_status_display %}</h2>
+        {% if can_approve %}
+          <form method="post" class="inline-form" action="{% url 'plans:plan_approve' emergency.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Approve the plan</button>
+          </form>
+        {% endif %}
+      </section>
 
-    <section class="card">
-      <h2>Actions</h2>
-      <table>
-        <thead>
-          <tr><th>Description</th><th>Type</th><th>Owner</th><th>Due</th><th>Status</th><th></th></tr>
-        </thead>
-        <tbody>
-          {% for action, can_update in rows %}
-            <tr>
-              <td>{{ action.description }}</td>
-              <td>{{ action.get_code_display }}</td>
-              <td>{{ action.owner.username|default:"Unassigned" }}</td>
-              <td>{{ action.due_date|date:"Y-m-d" }}</td>
-              <td>{{ action.get_status_display }}</td>
-              <td>
-                {% if can_update %}
-                  <form method="post" action="{% url 'plans:action_advance' action.pk %}">
-                    {% csrf_token %}
-                    <input type="hidden" name="expected_status" value="{{ action.status }}">
-                    <button type="submit">Advance</button>
-                  </form>
-                {% endif %}
-                {% if can_edit %}<a href="{% url 'plans:action_edit' action.pk %}">Edit</a>{% endif %}
-              </td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="6">No actions yet.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% if can_edit %}<p><a href="{% url 'plans:action_create' emergency.pk %}">Add an action</a></p>{% endif %}
-    </section>
+      <section class="card">
+        <h2>Actions</h2>
+        {% if rows %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Description</th><th>Type</th><th>Owner</th><th>Due</th><th>Status</th><th></th></tr>
+              </thead>
+              <tbody>
+                {% for action, can_update in rows %}
+                  <tr>
+                    <td>{{ action.description }}</td>
+                    <td>{{ action.get_code_display }}</td>
+                    <td>{{ action.owner.username|default:"Unassigned" }}</td>
+                    <td>{{ action.due_date|date:"Y-m-d" }}</td>
+                    <td>{% include "_status_badge.html" with kind="action" value=action.status label=action.get_status_display %}</td>
+                    <td>
+                      <div class="cell-actions">
+                        {% if can_update %}
+                          <form method="post" class="inline-form" action="{% url 'plans:action_advance' action.pk %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="expected_status" value="{{ action.status }}">
+                            <button type="submit" class="btn btn-secondary">Advance</button>
+                          </form>
+                        {% endif %}
+                        {% if can_edit %}<a href="{% url 'plans:action_edit' action.pk %}">Edit</a>{% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state"><p>No actions yet.</p></div>
+        {% endif %}
+        {% if can_edit %}
+          <div class="button-row">
+            <a class="btn btn-primary" href="{% url 'plans:action_create' emergency.pk %}">Add an action</a>
+          </div>
+        {% endif %}
+      </section>
 
-    <section class="card">
-      <h2>Resources</h2>
-      <table>
-        <thead>
-          <tr><th>Resource</th><th>Kind</th><th>Quantity</th><th></th></tr>
-        </thead>
-        <tbody>
-          {% for assignment in assignments %}
-            <tr>
-              <td>{{ assignment.resource.name }}</td>
-              <td>{{ assignment.resource.get_kind_display }}</td>
-              <td>{{ assignment.quantity }}</td>
-              <td>
-                {% if can_edit %}
-                  <form method="post" action="{% url 'plans:assignment_remove' assignment.pk %}">
-                    {% csrf_token %}
-                    <button type="submit">Remove</button>
-                  </form>
-                {% endif %}
-              </td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="4">No resources assigned.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% if can_edit %}
-        <form method="post" action="{% url 'plans:assignment_create' emergency.pk %}">
-          {% csrf_token %}
-          {{ assignment_form.as_p }}
-          <button type="submit">Assign</button>
-        </form>
-      {% endif %}
-    </section>
-  {% endif %}
-
-  <section class="card">
-    <h2>Suggested plan</h2>
-    {% if can_suggest %}
-      <form method="post" action="{% url 'plans:plan_suggest' emergency.pk %}">
-        {% csrf_token %}
-        <button type="submit">Suggest plan</button>
-      </form>
+      <section class="card">
+        <h2>Resources</h2>
+        {% if assignments %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Resource</th><th>Kind</th><th>Quantity</th><th></th></tr>
+              </thead>
+              <tbody>
+                {% for assignment in assignments %}
+                  <tr>
+                    <td>{{ assignment.resource.name }}</td>
+                    <td>{{ assignment.resource.get_kind_display }}</td>
+                    <td>{{ assignment.quantity }}</td>
+                    <td>
+                      {% if can_edit %}
+                        <form method="post" class="inline-form" action="{% url 'plans:assignment_remove' assignment.pk %}">
+                          {% csrf_token %}
+                          <button type="submit" class="btn btn-secondary">Remove</button>
+                        </form>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state"><p>No resources assigned.</p></div>
+        {% endif %}
+        {% if can_edit %}
+          <form method="post" action="{% url 'plans:assignment_create' emergency.pk %}">
+            {% csrf_token %}
+            <h3>Assign a resource</h3>
+            {% include "_form_fields.html" with form=assignment_form %}
+            <button type="submit" class="btn btn-primary">Assign</button>
+          </form>
+        {% endif %}
+      </section>
     {% endif %}
-    {% if suggestion %}
-      <p>Model: {{ suggestion.version }}</p>
-      <h3>Similar cases</h3>
-      <table>
-        <thead>
-          <tr><th>Date</th><th>Type</th><th>Place</th></tr>
-        </thead>
-        <tbody>
-          {% for case in suggestion.cases %}
-            <tr>
-              <td>
-                {% if case.emergency_pk %}
-                  <a href="{% url 'emergencies:emergency_detail' case.emergency_pk %}">{{ case.date|date:"Y-m-d" }}</a>
-                {% else %}
-                  {{ case.date|date:"Y-m-d" }}
-                {% endif %}
-              </td>
-              <td>{{ case.type }}</td>
-              <td>{{ case.place }}</td>
-            </tr>
-          {% empty %}
-            <tr><td colspan="3">No similar cases are available.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      <h3>Suggested actions</h3>
-      <ul>
-        {% for code, label in suggestion.actions %}
-          <li>
-            {{ label }}
-            {% if can_add %}
-              <form method="post" action="{% url 'plans:suggested_action_add' emergency.pk %}">
-                {% csrf_token %}
-                <input type="hidden" name="code" value="{{ code }}">
-                <button type="submit">Add to plan</button>
-              </form>
-            {% endif %}
-          </li>
-        {% empty %}
-          <li>No actions are suggested yet.</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  </section>
 
-  <p><a href="{% url 'emergencies:emergency_detail' emergency.pk %}">Back to the emergency</a></p>
+    <section class="card">
+      <h2>Suggested plan</h2>
+      {% if can_suggest %}
+        <form method="post" class="inline-form" action="{% url 'plans:plan_suggest' emergency.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-primary">Suggest plan</button>
+        </form>
+      {% endif %}
+      {% if suggestion %}
+        <p class="item-meta">Model: {{ suggestion.version }}</p>
+        <h3>Similar cases</h3>
+        {% if suggestion.cases %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Date</th><th>Type</th><th>Place</th></tr>
+              </thead>
+              <tbody>
+                {% for case in suggestion.cases %}
+                  <tr>
+                    <td>
+                      {% if case.emergency_pk %}
+                        <a href="{% url 'emergencies:emergency_detail' case.emergency_pk %}">{{ case.date|date:"Y-m-d" }}</a>
+                      {% else %}
+                        {{ case.date|date:"Y-m-d" }}
+                      {% endif %}
+                    </td>
+                    <td>{{ case.type }}</td>
+                    <td>{{ case.place }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state"><p>No similar cases are available.</p></div>
+        {% endif %}
+        <h3>Suggested actions</h3>
+        <ul class="item-list">
+          {% for code, label in suggestion.actions %}
+            <li>
+              <span>{{ label }}</span>
+              {% if can_add %}
+                <form method="post" class="inline-form" action="{% url 'plans:suggested_action_add' emergency.pk %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="code" value="{{ code }}">
+                  <button type="submit" class="btn btn-secondary">Add to plan</button>
+                </form>
+              {% endif %}
+            </li>
+          {% empty %}
+            <li>No actions are suggested yet.</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </section>
+  </div>
+
+  <p class="back-link"><a href="{% url 'emergencies:emergency_detail' emergency.pk %}">Back to the emergency</a></p>
 {% endblock %}

@@ -351,3 +351,50 @@ textarea {
   .bar-list li { grid-template-columns: 1fr auto; }
   .bar-list .bar-track { grid-column: 1 / -1; }
 }
+
+.card h2 { margin-top: 0; font-size: 1.25rem; }
+.card h3 { margin: 16px 0 8px; font-size: 1rem; }
+.card > :last-child { margin-bottom: 0; }
+.card-stack { display: grid; gap: 24px; margin-bottom: 24px; }
+.card-stack > .card { margin: 0; }
+.card-grid-compact { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; }
+.card-grid > .card-plain { min-width: 0; }
+.card-grid > .card-plain h3 { margin-top: 0; }
+
+.filter-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  align-items: end;
+  gap: 16px;
+  max-width: none;
+  margin-bottom: 24px;
+}
+.filter-bar .form-field { margin-bottom: 0; }
+.filter-bar label { display: block; margin-bottom: 4px; font-weight: 500; }
+
+.detail-list { display: grid; grid-template-columns: max-content 1fr; gap: 8px 24px; margin: 0 0 16px; }
+.detail-list dt { color: var(--spruce-mist); font-weight: 500; }
+.detail-list dd { margin: 0; }
+
+.button-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; }
+.inline-form { display: inline; margin: 0; }
+.cell-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+
+.item-list { list-style: none; margin: 0 0 16px; padding: 0; }
+.item-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+.item-list li:last-child { border-bottom: 0; }
+.item-meta { color: var(--spruce-mist); font-size: 0.875rem; }
+.plain-list { margin: 0 0 12px; padding-left: 24px; }
+
+.badge-icon { width: 1em; height: 1em; vertical-align: -0.125em; margin-right: 4px; }
+.pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; }
+.form-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: 8px; }
+.back-link { margin-top: 24px; }

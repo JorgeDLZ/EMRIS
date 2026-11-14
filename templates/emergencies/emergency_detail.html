@@ -3,163 +3,192 @@
 {% block title %}EMRIS — Emergency {{ emergency.pk }}{% endblock %}
 
 {% block content %}
-  <h1>{{ emergency.emergency_type.name }} in {{ emergency.municipality.name }}</h1>
+  <div class="page-header">
+    <div>
+      <h1>{{ emergency.emergency_type.name }} in {{ emergency.municipality.name }}</h1>
+      <p>{% include "_status_badge.html" with kind="emergency" value=emergency.status label=emergency.get_status_display %}</p>
+    </div>
+    {% if can_edit %}<a class="btn btn-secondary" href="{% url 'emergencies:emergency_edit' emergency.pk %}">Edit emergency</a>{% endif %}
+  </div>
   {% include "_messages.html" %}
 
-  <section class="card">
-    <h2>Summary</h2>
-    <p>Status: {{ emergency.get_status_display }}</p>
-    <p>Municipality: {{ emergency.municipality.name }} ({{ emergency.municipality.department.name }})</p>
-    <p>Occurred: {{ emergency.occurred_at|date:"Y-m-d H:i" }}</p>
-    {% if emergency.site %}<p>Site: {{ emergency.site }}</p>{% endif %}
-    {% if emergency.description %}<p>{{ emergency.description }}</p>{% endif %}
-    {% if emergency.is_earthquake %}
-      {% if emergency.magnitude is not None %}<p>Magnitude: {{ emergency.magnitude }}</p>{% endif %}
-      {% if emergency.depth_km is not None %}<p>Depth: {{ emergency.depth_km }} km</p>{% endif %}
-    {% endif %}
-    {% if can_edit %}<p><a href="{% url 'emergencies:emergency_edit' emergency.pk %}">Edit emergency</a></p>{% endif %}
-  </section>
-
-  {% if emergency.is_earthquake %}
-    {% if emergency.seismic_event or can_edit %}
-      <section class="card">
-        <h2>SGC seismic event</h2>
-        {% if emergency.seismic_event %}
-          <p>
-            Magnitude {{ emergency.seismic_event.magnitude }} · depth {{ emergency.seismic_event.depth_km }} km ·
-            {{ emergency.seismic_event.place }} · {{ emergency.seismic_link_distance_km|floatformat:1 }} km away ·
-            SGC id {{ emergency.seismic_event.sgc_id }}
-          </p>
-          {% if can_edit %}
-            <form method="post" action="{% url 'emergencies:seismic_clear' emergency.pk %}">
-              {% csrf_token %}
-              <button type="submit">Clear</button>
-            </form>
-          {% endif %}
-        {% elif suggestion %}
-          <p>
-            Suggested: magnitude {{ suggestion.event.magnitude }} · depth {{ suggestion.event.depth_km }} km ·
-            {{ suggestion.event.place }} · {{ suggestion.distance_km|floatformat:1 }} km away ·
-            SGC id {{ suggestion.event.sgc_id }}
-          </p>
-          <form method="post" action="{% url 'emergencies:seismic_confirm' emergency.pk %}">
-            {% csrf_token %}
-            <button type="submit">Confirm</button>
-          </form>
-        {% else %}
-          <p>No SGC event matches; enter magnitude and depth in the form.</p>
+  <div class="card-stack">
+    <section class="card">
+      <h2>Summary</h2>
+      <dl class="detail-list">
+        <dt>Status</dt>
+        <dd>{{ emergency.get_status_display }}</dd>
+        <dt>Municipality</dt>
+        <dd>{{ emergency.municipality.name }} ({{ emergency.municipality.department.name }})</dd>
+        <dt>Occurred</dt>
+        <dd>{{ emergency.occurred_at|date:"Y-m-d H:i" }}</dd>
+        {% if emergency.site %}
+          <dt>Site</dt>
+          <dd>{{ emergency.site }}</dd>
         {% endif %}
-      </section>
-    {% endif %}
-  {% endif %}
+        {% if emergency.is_earthquake %}
+          {% if emergency.magnitude is not None %}
+            <dt>Magnitude</dt>
+            <dd>{{ emergency.magnitude }}</dd>
+          {% endif %}
+          {% if emergency.depth_km is not None %}
+            <dt>Depth</dt>
+            <dd>{{ emergency.depth_km }} km</dd>
+          {% endif %}
+        {% endif %}
+      </dl>
+      {% if emergency.description %}<p>{{ emergency.description }}</p>{% endif %}
+    </section>
 
-  <section class="card">
-    <h2>Impact</h2>
-    {% if impact %}
-      <ul>
-        <li>Deceased: {{ impact.deceased }}</li>
-        <li>Injured: {{ impact.injured }}</li>
-        <li>Missing: {{ impact.missing }}</li>
-        <li>People affected: {{ impact.people_affected }}</li>
-        <li>Families affected: {{ impact.families_affected }}</li>
-        <li>Homes destroyed: {{ impact.homes_destroyed }}</li>
-        <li>Homes damaged: {{ impact.homes_damaged }}</li>
-        <li>Roads damaged: {{ impact.roads_damaged }}</li>
-        <li>Bridges damaged: {{ impact.bridges_damaged }}</li>
-        <li>Hectares: {{ impact.hectares }}</li>
-      </ul>
-    {% else %}
-      <p>No impact recorded yet.</p>
-    {% endif %}
-    {% if can_edit %}<p><a href="{% url 'emergencies:impact_edit' emergency.pk %}">Record impact</a></p>{% endif %}
-  </section>
-
-  {% include "intelligence/_emergency_panel.html" %}
-
-  <section class="card">
-    <h2>Action plan</h2>
-    {% if plan %}
-      <p>Status: {{ plan.get_status_display }}</p>
-      <ul>
-        {% for action, can_update in plan_rows %}
-          <li>
-            {{ action.description }}
-            {% if action.code %}· {{ action.get_code_display }}{% endif %}
-            · {{ action.owner.username|default:"Unassigned" }}
-            {% if action.due_date %}· due {{ action.due_date|date:"Y-m-d" }}{% endif %}
-            · {{ action.get_status_display }}
-            {% if can_update %}
-              <form method="post" action="{% url 'plans:action_advance' action.pk %}">
+    {% if emergency.is_earthquake %}
+      {% if emergency.seismic_event or can_edit %}
+        <section class="card">
+          <h2>SGC seismic event</h2>
+          {% if emergency.seismic_event %}
+            <p>
+              Magnitude {{ emergency.seismic_event.magnitude }} · depth {{ emergency.seismic_event.depth_km }} km ·
+              {{ emergency.seismic_event.place }} · {{ emergency.seismic_link_distance_km|floatformat:1 }} km away ·
+              SGC id {{ emergency.seismic_event.sgc_id }}
+            </p>
+            {% if can_edit %}
+              <form method="post" class="inline-form" action="{% url 'emergencies:seismic_clear' emergency.pk %}">
                 {% csrf_token %}
-                <input type="hidden" name="expected_status" value="{{ action.status }}">
-                <button type="submit">Advance</button>
+                <button type="submit" class="btn btn-secondary">Clear</button>
               </form>
             {% endif %}
-          </li>
-        {% empty %}
-          <li>No actions yet.</li>
-        {% endfor %}
-      </ul>
-      {% if assignments %}
-        <h3>Resources</h3>
-        <ul>
-          {% for assignment in assignments %}
-            <li>{{ assignment.quantity }} × {{ assignment.resource.name }}</li>
+          {% elif suggestion %}
+            <p>
+              Suggested: magnitude {{ suggestion.event.magnitude }} · depth {{ suggestion.event.depth_km }} km ·
+              {{ suggestion.event.place }} · {{ suggestion.distance_km|floatformat:1 }} km away ·
+              SGC id {{ suggestion.event.sgc_id }}
+            </p>
+            <form method="post" class="inline-form" action="{% url 'emergencies:seismic_confirm' emergency.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-primary">Confirm</button>
+            </form>
+          {% else %}
+            <p>No SGC event matches; enter magnitude and depth in the form.</p>
+          {% endif %}
+        </section>
+      {% endif %}
+    {% endif %}
+
+    <section class="card">
+      <h2>Impact</h2>
+      {% if impact %}
+        <div class="card-grid card-grid-compact">
+          <div class="metric"><span class="metric-value">{{ impact.deceased }}</span><span class="metric-label">Deceased</span></div>
+          <div class="metric"><span class="metric-value">{{ impact.injured }}</span><span class="metric-label">Injured</span></div>
+          <div class="metric"><span class="metric-value">{{ impact.missing }}</span><span class="metric-label">Missing</span></div>
+          <div class="metric"><span class="metric-value">{{ impact.people_affected }}</span><span class="metric-label">People affected</span></div>
+          <div class="metric"><span class="metric-value">{{ impact.families_affected }}</span><span class="metric-label">Families affected</span></div>
+          <div class="metric"><span class="metric-value">{{ impact.homes_destroyed }}</span><span class="metric-label">Homes destroyed</span></div>
+          <div class="metric"><span class="metric-value">{{ impact.homes_damaged }}</span><span class="metric-label">Homes damaged</span></div>
+          <div class="metric"><span class="metric-value">{{ impact.roads_damaged }}</span><span class="metric-label">Roads damaged</span></div>
+          <div class="metric"><span class="metric-value">{{ impact.bridges_damaged }}</span><span class="metric-label">Bridges damaged</span></div>
+          <div class="metric"><span class="metric-value">{{ impact.hectares }}</span><span class="metric-label">Hectares</span></div>
+        </div>
+      {% else %}
+        <p>No impact recorded yet.</p>
+      {% endif %}
+      {% if can_edit %}<a class="btn btn-secondary" href="{% url 'emergencies:impact_edit' emergency.pk %}">Record impact</a>{% endif %}
+    </section>
+
+    {% include "intelligence/_emergency_panel.html" %}
+
+    <section class="card">
+      <h2>Action plan</h2>
+      {% if plan %}
+        <p>Status: {% include "_status_badge.html" with kind="plan" value=plan.status label=plan.get_status_display %}</p>
+        <ul class="item-list">
+          {% for action, can_update in plan_rows %}
+            <li>
+              <span>
+                {{ action.description }}
+                <span class="item-meta">
+                  {% if action.code %}· {{ action.get_code_display }}{% endif %}
+                  · {{ action.owner.username|default:"Unassigned" }}
+                  {% if action.due_date %}· due {{ action.due_date|date:"Y-m-d" }}{% endif %}
+                </span>
+              </span>
+              <span class="cell-actions">
+                {% include "_status_badge.html" with kind="action" value=action.status label=action.get_status_display %}
+                {% if can_update %}
+                  <form method="post" class="inline-form" action="{% url 'plans:action_advance' action.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="expected_status" value="{{ action.status }}">
+                    <button type="submit" class="btn btn-secondary">Advance</button>
+                  </form>
+                {% endif %}
+              </span>
+            </li>
+          {% empty %}
+            <li>No actions yet.</li>
           {% endfor %}
         </ul>
+        {% if assignments %}
+          <h3>Resources</h3>
+          <ul class="plain-list">
+            {% for assignment in assignments %}
+              <li>{{ assignment.quantity }} × {{ assignment.resource.name }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        <a class="btn btn-secondary" href="{% url 'plans:plan_detail' emergency.pk %}">{% if can_edit_plan %}Manage the plan{% else %}View the plan{% endif %}</a>
+      {% else %}
+        <p>No action plan yet.</p>
+        {% if can_start_plan %}
+          <form method="post" class="inline-form" action="{% url 'plans:plan_start' emergency.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Start the plan</button>
+          </form>
+        {% endif %}
       {% endif %}
-      <p>
-        <a href="{% url 'plans:plan_detail' emergency.pk %}">{% if can_edit_plan %}Manage the plan{% else %}View the plan{% endif %}</a>
-      </p>
-    {% else %}
-      <p>No action plan yet.</p>
-      {% if can_start_plan %}
-        <form method="post" action="{% url 'plans:plan_start' emergency.pk %}">
+    </section>
+
+    {% if next_statuses %}
+      <section class="card">
+        <h2>Change status</h2>
+        <form method="post" action="{% url 'emergencies:status_change' emergency.pk %}">
           {% csrf_token %}
-          <button type="submit">Start the plan</button>
+          <div class="form-field">
+            <label for="status-note">Note</label>
+            <input type="text" name="note" id="status-note">
+          </div>
+          <div class="button-row">
+            {% for value, label in next_statuses %}
+              <button type="submit" class="btn btn-secondary" name="status" value="{{ value }}">Move to {{ label }}</button>
+            {% endfor %}
+          </div>
+        </form>
+      </section>
+    {% endif %}
+
+    <section class="card">
+      <h2>Follow-up</h2>
+      <ul class="item-list">
+        {% for entry in log %}
+          <li>
+            <span>
+              <span class="item-meta">{{ entry.created_at|date:"Y-m-d H:i" }} · {{ entry.author.username|default:"Unknown" }}</span><br>
+              {% if entry.is_status_change %}Status changed to {{ entry.status_label }}{% else %}{{ entry.status_label }}{% endif %}
+              {% if entry.note %}: {{ entry.note }}{% endif %}
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+      {% if can_edit %}
+        <form method="post" action="{% url 'emergencies:note_add' emergency.pk %}">
+          {% csrf_token %}
+          <div class="form-field">
+            <label for="note">Add a note</label>
+            <textarea name="note" id="note" rows="3"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">Add note</button>
         </form>
       {% endif %}
-    {% endif %}
-  </section>
-
-  {% if next_statuses %}
-    <section class="card">
-      <h2>Change status</h2>
-      <form method="post" action="{% url 'emergencies:status_change' emergency.pk %}">
-        {% csrf_token %}
-        <p>
-          <label for="status-note">Note</label>
-          <input type="text" name="note" id="status-note">
-        </p>
-        {% for value, label in next_statuses %}
-          <button type="submit" name="status" value="{{ value }}">Move to {{ label }}</button>
-        {% endfor %}
-      </form>
     </section>
-  {% endif %}
+  </div>
 
-  <section class="card">
-    <h2>Follow-up</h2>
-    <ul>
-      {% for entry in log %}
-        <li>
-          {{ entry.created_at|date:"Y-m-d H:i" }} · {{ entry.author.username|default:"Unknown" }} ·
-          {% if entry.is_status_change %}Status changed to {{ entry.status_label }}{% else %}{{ entry.status_label }}{% endif %}
-          {% if entry.note %}: {{ entry.note }}{% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-    {% if can_edit %}
-      <form method="post" action="{% url 'emergencies:note_add' emergency.pk %}">
-        {% csrf_token %}
-        <p>
-          <label for="note">Add a note</label>
-          <textarea name="note" id="note" rows="3"></textarea>
-        </p>
-        <button type="submit">Add note</button>
-      </form>
-    {% endif %}
-  </section>
-
-  <p><a href="{% url 'emergencies:emergency_list' %}">Back to emergencies</a></p>
+  <p class="back-link"><a href="{% url 'emergencies:emergency_list' %}">Back to emergencies</a></p>
 {% endblock %}

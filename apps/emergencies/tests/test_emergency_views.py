@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 
 import pytest
@@ -630,3 +631,31 @@ def test_list_ignores_unusable_type_values(client, db, value):
     response = client.get(reverse("emergencies:emergency_list"), {"type": value})
     assert response.status_code == 200
     assert response.context["type_id"] == ""
+
+
+def test_emergency_status_badges(client, make_emergency):
+    make_emergency(status=IN_RESPONSE)
+    client.force_login(make_user("olga", OPERATOR))
+    html = client.get(reverse("emergencies:emergency_list")).content.decode()
+    assert re.search(r'class="badge badge-warning">\s*In response\s*<', html)
+
+
+def test_form_errors_next_to_field(client, medellin, flood):
+    client.force_login(make_user("olga", OPERATOR))
+    future = (timezone.now() + timedelta(days=2)).strftime("%Y-%m-%dT%H:%M")
+    response = client.post(
+        reverse("emergencies:emergency_create"), form_data(medellin, flood, occurred_at=future)
+    )
+    html = response.content.decode()
+    field = html.split('name="occurred_at"')[1].split("</div>")[0]
+    assert 'class="field-error"' in field
+    assert "The date cannot be in the future." in field
+    assert 'aria-invalid="true"' in html
+
+
+def test_emergency_list_empty_state(client, db):
+    client.force_login(make_user("olga", OPERATOR))
+    html = client.get(reverse("emergencies:emergency_list")).content.decode()
+    assert "No emergencies match these filters." in html
+    assert "Report emergency" in html
+    assert reverse("emergencies:emergency_create") in html

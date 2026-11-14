@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 
 import pytest
@@ -627,3 +628,17 @@ def test_non_ascii_digit_reference_is_ignored(client, make_emergency, active_sim
     login(client, make_user("operator", OPERATOR))
     response = client.get(reverse("plans:plan_detail", args=[emergency.pk]))
     assert response.status_code == 200
+
+
+def test_plan_page_uses_cards(client, make_emergency):
+    emergency = make_emergency()
+    plan = ActionPlan.objects.create(emergency=emergency)
+    Action.objects.create(plan=plan, description="Open shelter")
+    kits = Resource.objects.create(name="Food kits", kind=KIT, quantity_available=10)
+    ResourceAssignment.objects.create(plan=plan, resource=kits, quantity=2)
+    login(client, make_user("olga", OPERATOR))
+    html = client.get(reverse("plans:plan_detail", args=[emergency.pk])).content.decode()
+    compact = re.sub(r">\s+<", "><", html)
+    for heading in ("Actions", "Resources", "Suggested plan"):
+        assert f'<section class="card"><h2>{heading}</h2>' in compact
+    assert html.count('<div class="table-wrap">') >= 2
