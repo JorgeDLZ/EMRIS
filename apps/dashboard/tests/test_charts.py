@@ -33,7 +33,7 @@ def test_bars_keep_order():
 
 
 def test_bar_step_rounds_to_multiple_of_five():
-    assert [Bar("a", 1, percent).step for percent in (0, 2, 3, 33, 98, 100)] == [0, 0, 5, 35, 100, 100]
+    assert [Bar("a", percent, percent).step for percent in (0, 2, 3, 33, 98, 100)] == [0, 5, 5, 35, 100, 100]
 
 
 def test_dashboard_renders_bars(client, db):
@@ -57,3 +57,8 @@ def test_seismic_count_pluralised(client, db):
     login(client)
     html = client.get(reverse("dashboard:index")).content.decode()
     assert "1 event in the last 30 days of the catalog." in html
+
+
+def test_small_non_zero_values_keep_a_visible_step():
+    result = bars([("big", 1000), ("tiny", 1), ("none", 0)])
+    assert [bar.step for bar in result] == [100, 5, 0]

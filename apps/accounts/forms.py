@@ -40,7 +40,8 @@ class LoginThrottlingMixin:
         try:
             cleaned_data = super().clean()
         except forms.ValidationError:
-            record_failure(username, ip)
+            if self.user_cache is None:
+                record_failure(username, ip)
             raise
         if self.user_cache is not None:
             clear_failures(username, ip)

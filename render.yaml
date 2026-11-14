@@ -17,5 +17,7 @@ services:
         sync: false
       - key: CSRF_TRUSTED_ORIGINS
         sync: false
+      - key: CLIENT_IP_HEADER
+        value: CF-Connecting-IP
       - key: DATABASE_URL
         sync: false

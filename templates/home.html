@@ -117,7 +117,7 @@
   </section>
 
   <section id="business-understanding" class="landing-section">
-    <h2>Business and data understanding</h2>
+    <h3 class="landing-stage">Business and data understanding</h3>
     <ul>
       <li>Business objectives: what the organisation needs to achieve and how success will be recognised.</li>
       <li>Key questions: what the project has to answer for its users.</li>
@@ -125,13 +125,13 @@
       <li>Feasibility analysis: whether the objectives can be met with the available data and resources.</li>
     </ul>
     <div class="card landing-in-emris">
-      <h3>In EMRIS</h3>
+      <h4>In EMRIS</h4>
       <p>The objective is to support prioritisation and response planning in risk councils with four components: an impact estimator, emergency profiles, similar emergencies with a suggested action plan and a municipal risk level. The data are the 2025 UNGRD emergency history, the DANE DIVIPOLA municipality codes and the SGC seismicity catalog of magnitude 2.5 and above. The impact estimator uses only fields known at report time: event type, department, municipality and month.</p>
     </div>
   </section>
 
   <section id="data-engineering" class="landing-section">
-    <h2>Data engineering</h2>
+    <h3 class="landing-stage">Data engineering</h3>
     <ul>
       <li>Selection: choosing the records and variables that the models will use.</li>
       <li>Cleaning: removing errors, duplicates and inconsistencies.</li>
@@ -139,13 +139,13 @@
       <li>Documentation: recording every decision taken on the data.</li>
     </ul>
     <div class="card landing-in-emris">
-      <h3>In EMRIS</h3>
+      <h4>In EMRIS</h4>
       <p>The UNGRD file is kept exactly as downloaded. The load commands clean it, link each record to its DIVIPOLA municipality and extract the response actions from the free-text comments. The SGC catalog is filtered to magnitude 2.5 and above with rows unchanged, and each event is linked to a municipality. Both loads can be run again without duplicating data. The exploration notebook documents the findings.</p>
     </div>
   </section>
 
   <section id="model-engineering" class="landing-section">
-    <h2>Model engineering</h2>
+    <h3 class="landing-stage">Model engineering</h3>
     <ul>
       <li>Algorithm selection: comparing candidate techniques for each problem.</li>
       <li>Documentation: describing the chosen techniques and why they were chosen.</li>
@@ -153,38 +153,38 @@
       <li>Hyperparameter tuning: adjusting the settings that control how a model learns.</li>
     </ul>
     <div class="card landing-in-emris">
-      <h3>In EMRIS</h3>
+      <h4>In EMRIS</h4>
       <p>The impact estimator compares logistic regression and gradient boosting, and its decision threshold is tuned on September. Emergency profiles use K-means on log-scaled impact variables. Similar emergencies use k-nearest neighbors (k = 5) on type, place, month and impact. Municipal risk uses hierarchical agglomerative clustering (Ward) of municipalities with at least 3 emergencies. Five notebooks document the exploration and the four models.</p>
     </div>
   </section>
 
   <section id="model-evaluation" class="landing-section">
-    <h2>Model evaluation</h2>
+    <h3 class="landing-stage">Model evaluation</h3>
     <ul>
       <li>Validation and performance metrics: measuring how well each model does its job.</li>
       <li>Cross-validation: checking that the results hold on data the model has not seen.</li>
       <li>Risk analysis: identifying what could go wrong when the model is used.</li>
     </ul>
     <div class="card landing-in-emris">
-      <h3>In EMRIS</h3>
+      <h4>In EMRIS</h4>
       <p>The impact estimator and similar emergencies are evaluated with a time-based split: train on January–September, test on October–December. Emergency profiles and municipal risk are fitted and scored on the whole year. The selected logistic regression reaches F1 0.51 against 0.48 for the baseline of the same type and municipality. Profiles are stable across seeds (ARI 0.98) and municipal risk has a stability ARI of 0.73. Similar emergencies reach precision at 5 of 0.94 with impact data against 0.75 for random neighbors of the same type.</p>
     </div>
   </section>
 
   <section id="deployment" class="landing-section">
-    <h2>Deployment</h2>
+    <h3 class="landing-stage">Deployment</h3>
     <ul>
       <li>Production deployment: making the model available to its users inside a real system.</li>
       <li>Documentation and training: explaining to users how the system works and how to operate it.</li>
     </ul>
     <div class="card landing-in-emris">
-      <h3>In EMRIS</h3>
+      <h4>In EMRIS</h4>
       <p>The application runs on Render with a Supabase PostgreSQL database. The four components are trained from the database and stored as versioned models in the database. They appear inside the workflow: the estimated probability, profile and municipal risk level on each emergency, the open emergencies ordered by estimated probability, and the suggested action plan from similar past cases. Excel reports export emergencies, the municipal risk ranking and the UNGRD history.</p>
     </div>
   </section>
 
   <section id="monitoring" class="landing-section">
-    <h2>Monitoring and maintenance</h2>
+    <h3 class="landing-stage">Monitoring and maintenance</h3>
     <ul>
       <li>Protocols: agreed procedures for supervising the system.</li>
       <li>Continuous supervision: watching how the model behaves in use.</li>
@@ -193,7 +193,7 @@
       <li>Risk review: revisiting the risks as the system evolves.</li>
     </ul>
     <div class="card landing-in-emris">
-      <h3>In EMRIS</h3>
+      <h4>In EMRIS</h4>
       <p>Administrators retrain the models from the interface; training uses the historical records plus the closed emergencies with a recorded impact. A new version is activated only if it passes the quality gate: the impact estimator and the emergency profiles need a strictly better candidate, compared on records dated after the active model's training period, while similar emergencies and municipal risk need a candidate that is not worse. A run still running after 30 minutes is marked failed. Every version is kept, so any previous one can be reactivated.</p>
     </div>
   </section>

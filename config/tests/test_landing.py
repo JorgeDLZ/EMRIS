@@ -114,10 +114,17 @@ def test_landing_for_user_without_role(client, db):
 def test_landing_lists_six_stages_and_references(client, db):
     html = landing(client)
     for stage in STAGES:
-        assert f">{stage}</h2>" in html
+        assert f'<h3 class="landing-stage">{stage}</h3>' in html
     references = html[html.index('id="references"') :]
     for title in REFERENCE_TITLES:
         assert title in references
+
+
+def test_landing_stages_sit_under_the_methodology_heading(client, db):
+    html = landing(client)
+    assert html.index(">CRISP-ML methodology</h2>") < html.index(f">{STAGES[0]}</h3>")
+    for stage in STAGES:
+        assert f">{stage}</h2>" not in html
 
 
 def test_landing_does_not_load_ml_libraries():

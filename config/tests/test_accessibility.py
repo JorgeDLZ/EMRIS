@@ -1,8 +1,8 @@
 from datetime import date, timedelta
+from html.parser import HTMLParser
 from urllib.parse import urljoin, urlsplit
 
 import pytest
-from bs4 import BeautifulSoup
 from django.contrib.auth.models import Group
 from django.test import Client
 from django.urls import reverse
@@ -17,6 +17,74 @@ from apps.plans.models import KIT, Action, ActionPlan, Resource, ResourceAssignm
 
 PASSWORD = "pass-12345"
 ROLES = (ADMINISTRATOR, RISK_MANAGER, OPERATOR, ACTION_OWNER)
+
+
+VOID_TAGS = {
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr",
+}
+
+
+class Node:
+    def __init__(self, tag, attrs, parent):
+        self.tag = tag
+        self.attrs = attrs
+        self.parent = parent
+        self.children = []
+
+    def get(self, name, default=None):
+        return self.attrs.get(name, default)
+
+    def text(self):
+        parts = []
+        for child in self.children:
+            parts.append(child if isinstance(child, str) else child.text())
+        return "".join(parts)
+
+    def descendants(self):
+        for child in self.children:
+            if not isinstance(child, str):
+                yield child
+                yield from child.descendants()
+
+    def has_ancestor_class(self, name):
+        node = self.parent
+        while node is not None:
+            if name in (node.get("class") or "").split():
+                return True
+            node = node.parent
+        return False
+
+
+class Page(HTMLParser):
+    def __init__(self, html):
+        super().__init__()
+        self.root = Node("[document]", {}, None)
+        self.current = self.root
+        self.feed(html)
+        self.close()
+
+    def handle_starttag(self, tag, attrs):
+        node = Node(tag, {name: value or "" for name, value in attrs}, self.current)
+        self.current.children.append(node)
+        if tag not in VOID_TAGS:
+            self.current = node
+
+    def handle_startendtag(self, tag, attrs):
+        node = Node(tag, {name: value or "" for name, value in attrs}, self.current)
+        self.current.children.append(node)
+
+    def handle_endtag(self, tag):
+        node = self.current
+        while node is not self.root and node.tag != tag:
+            node = node.parent
+        if node is not self.root:
+            self.current = node.parent
+
+    def handle_data(self, data):
+        self.current.children.append(data)
+
+    def find_all(self, *tags):
+        return [node for node in self.root.descendants() if node.tag in tags]
 
 
 @pytest.fixture
@@ -137,46 +205,45 @@ def test_plan_page_audits_the_resource_assignment_form(admin_pages, world):
 def test_every_page_has_one_h1_and_lang(admin_pages):
     for url, html in admin_pages.items():
         assert '<html lang="en">' in html, url
-        soup = BeautifulSoup(html, "html.parser")
-        assert len(soup.find_all("h1")) == 1, url
-        assert soup.find(["h1", "h2", "h3", "h4"]).name == "h1", url
+        page = Page(html)
+        assert len(page.find_all("h1")) == 1, url
+        assert page.find_all("h1", "h2", "h3", "h4")[0].tag == "h1", url
 
 
 def test_every_table_is_wrapped(admin_pages):
     for url, html in admin_pages.items():
-        for table in BeautifulSoup(html, "html.parser").find_all("table"):
-            wrapper = table.find_parent(class_="table-wrap")
-            assert wrapper is not None, url
+        for table in Page(html).find_all("table"):
+            assert table.has_ancestor_class("table-wrap"), url
 
 
 def test_every_input_has_a_label(admin_pages):
     for url, html in admin_pages.items():
-        soup = BeautifulSoup(html, "html.parser")
-        labels = soup.find_all("label")
-        assert not [label for label in labels if label.get_text(strip=True).endswith(":")], url
-        labelled = {label["for"] for label in labels if label.get("for")}
-        for field in soup.find_all(["input", "select", "textarea"]):
-            if field.name == "input" and field.get("type") in ("hidden", "submit", "button"):
+        page = Page(html)
+        labels = page.find_all("label")
+        assert not [label for label in labels if label.text().strip().endswith(":")], url
+        labelled = {label.get("for") for label in labels if label.get("for")}
+        for field in page.find_all("input", "select", "textarea"):
+            if field.tag == "input" and field.get("type") in ("hidden", "submit", "button"):
                 continue
             assert field.get("id"), (url, field)
-            assert field["id"] in labelled or field.get("aria-label"), (url, field)
+            assert field.get("id") in labelled or field.get("aria-label"), (url, field)
 
 
 def test_icon_only_controls_have_labels(admin_pages):
     for url, html in admin_pages.items():
-        soup = BeautifulSoup(html, "html.parser")
-        for control in soup.find_all(["button", "a"]):
-            if control.get_text(strip=True) or control.get("aria-label"):
+        for control in Page(html).find_all("button", "a"):
+            if control.text().strip() or control.get("aria-label"):
                 continue
             assert control.get("aria-labelledby"), (url, control)
 
 
 def internal_links(html, page_url="/"):
     links = set()
-    for anchor in BeautifulSoup(html, "html.parser").find_all("a", href=True):
-        if anchor["href"].startswith("#"):
+    for anchor in Page(html).find_all("a"):
+        href = anchor.get("href")
+        if href is None or href.startswith("#"):
             continue
-        parts = urlsplit(urljoin(page_url, anchor["href"]))
+        parts = urlsplit(urljoin(page_url, href))
         if parts.scheme in ("http", "https") and not parts.netloc.startswith("testserver"):
             continue
         if parts.scheme not in ("", "http", "https") or parts.path.startswith("/admin/"):

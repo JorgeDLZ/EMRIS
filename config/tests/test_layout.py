@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.template.loader import render_to_string
 
 from apps.accounts.models import User
-from apps.accounts.roles import OPERATOR
+from apps.accounts.roles import ADMINISTRATOR, OPERATOR
 
 TEMPLATES_DIR = Path(settings.BASE_DIR) / "templates"
 
@@ -105,3 +105,14 @@ def test_server_error_pages_have_no_header_actions(client, db, settings):
     for html in (unavailable.content.decode(), render_to_string("500.html")):
         assert "Log in" not in html
         assert "Open dashboard" not in html
+
+
+def test_flash_messages_are_announced(client, db):
+    user = User.objects.create_user("ana", password="pass-12345")
+    user.groups.add(Group.objects.get(name=ADMINISTRATOR))
+    client.force_login(user)
+    response = client.post(
+        reverse("accounts:user_role", args=[user.pk]), {"role": OPERATOR}, follow=True
+    )
+    html = " ".join(response.content.decode().split())
+    assert '<div role="status"> <ul class="messages">' in html

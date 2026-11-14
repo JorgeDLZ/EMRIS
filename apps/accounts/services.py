@@ -2,7 +2,7 @@ from django.contrib.auth.models import Group
 from django.db import transaction
 
 from apps.accounts.models import User
-from apps.accounts.roles import ADMINISTRATOR, ALL_ROLES, get_role
+from apps.accounts.roles import ADMINISTRATOR, ALL_ROLES, clear_role_cache, get_role
 
 
 class RoleChangeError(Exception):
@@ -22,3 +22,4 @@ def set_role(actor: User, target: User, role: str | None) -> None:
         target.groups.remove(*target.groups.filter(name__in=ALL_ROLES))
         if role is not None:
             target.groups.add(Group.objects.get(name=role))
+    clear_role_cache(target)

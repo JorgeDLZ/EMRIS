@@ -100,16 +100,49 @@ def test_old_failures_are_purged(client, db):
     assert list(LoginAttempt.objects.values_list("username", flat=True)) == ["beto"]
 
 
-def test_client_ip_uses_rightmost_forwarded_entry():
-    factory = RequestFactory()
-    forwarded = factory.get("/", HTTP_X_FORWARDED_FOR="1.1.1.1, 2.2.2.2 ", REMOTE_ADDR="3.3.3.3")
-    assert client_ip(forwarded) == "2.2.2.2"
-    assert client_ip(factory.get("/", REMOTE_ADDR="3.3.3.3")) == "3.3.3.3"
+def test_client_ip_uses_the_configured_header(settings):
+    settings.CLIENT_IP_HEADER = "CF-Connecting-IP"
+    request = RequestFactory().get("/", HTTP_CF_CONNECTING_IP=" 1.1.1.1 ", REMOTE_ADDR="3.3.3.3")
+    assert client_ip(request) == "1.1.1.1"
 
 
-def test_client_ip_ignores_invalid_forwarded_entry():
-    request = RequestFactory().get("/", HTTP_X_FORWARDED_FOR="not-an-ip", REMOTE_ADDR="3.3.3.3")
+def test_client_ip_ignores_the_header_when_unconfigured(settings):
+    settings.CLIENT_IP_HEADER = ""
+    request = RequestFactory().get("/", HTTP_CF_CONNECTING_IP="1.1.1.1", REMOTE_ADDR="3.3.3.3")
     assert client_ip(request) == "3.3.3.3"
+
+
+def test_client_ip_falls_back_on_invalid_header_value(settings):
+    settings.CLIENT_IP_HEADER = "CF-Connecting-IP"
+    request = RequestFactory().get("/", HTTP_CF_CONNECTING_IP="not-an-ip", REMOTE_ADDR="3.3.3.3")
+    assert client_ip(request) == "3.3.3.3"
+
+
+def test_client_ip_never_reads_x_forwarded_for(settings):
+    settings.CLIENT_IP_HEADER = "CF-Connecting-IP"
+    request = RequestFactory().get("/", HTTP_X_FORWARDED_FOR="1.1.1.1", REMOTE_ADDR="3.3.3.3")
+    assert client_ip(request) == "3.3.3.3"
+    settings.CLIENT_IP_HEADER = ""
+    assert client_ip(request) == "3.3.3.3"
+
+
+def test_long_lowercased_username_fits_the_column(client, db):
+    username = "İ" * 150
+    assert len(username.lower()) > 150
+    fail(client, username, 5)
+    assert LoginAttempt.objects.count() == 5
+    stored = LoginAttempt.objects.values_list("username", flat=True)
+    assert all(len(value) <= 150 for value in stored)
+    response = attempt(client, username, "wrong-password")
+    assert LOCKED_MESSAGE in response.content.decode()
+
+
+def test_admin_login_with_valid_non_staff_credentials_is_not_a_failure(client, db):
+    make_user("ana")
+    client.post(
+        reverse("admin:login"), {"username": "ana", "password": PASSWORD}, REMOTE_ADDR=IP_1
+    )
+    assert LoginAttempt.objects.count() == 0
 
 
 def test_locked_message_does_not_reveal_username(client, db):

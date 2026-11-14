@@ -165,6 +165,7 @@ textarea:focus-visible {
 .landing-section { max-width: 52rem; margin: 0 auto 48px; scroll-margin-top: 16px; }
 .landing-section h2 { font-size: 1.6rem; margin-bottom: 16px; }
 .landing-section h3 { margin-top: 24px; }
+.landing-section h3.landing-stage { margin-top: 0; font-size: 1.6rem; margin-bottom: 16px; }
 .landing-section .card-grid h4 { margin: 0 0 8px; font-size: 1rem; font-weight: 600; }
 .landing-section ol,
 .landing-section ul { margin: 0 0 12px; padding-left: 24px; }
@@ -173,7 +174,7 @@ textarea:focus-visible {
 .landing-references { font-size: 0.95rem; color: var(--spruce-mist); }
 .landing-contents { columns: 2 16rem; }
 .landing-in-emris { margin-top: 16px; border-left: 4px solid var(--verdant); }
-.landing-in-emris h3 { margin-top: 0; }
+.landing-in-emris h4 { margin: 0 0 8px; color: var(--spruce-900); font-size: 1rem; font-weight: 500; line-height: 1.2; }
 .landing-in-emris p:last-child { margin-bottom: 0; }
 
 .cycle { display: block; width: 100%; max-width: 760px; height: auto; margin: 24px auto; color: var(--spruce-900); }

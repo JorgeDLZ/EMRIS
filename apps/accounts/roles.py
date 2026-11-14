@@ -34,8 +34,18 @@ ROLE_LABELS: dict[str, str] = {
 }
 
 
+ROLE_CACHE_ATTRIBUTE = "_role_cache"
+
+
 def get_role(user) -> str | None:
     if not user.is_authenticated:
         return None
-    group = user.groups.filter(name__in=ALL_ROLES).first()
-    return group.name if group else None
+    if not hasattr(user, ROLE_CACHE_ATTRIBUTE):
+        group = user.groups.filter(name__in=ALL_ROLES).first()
+        setattr(user, ROLE_CACHE_ATTRIBUTE, group.name if group else None)
+    return getattr(user, ROLE_CACHE_ATTRIBUTE)
+
+
+def clear_role_cache(user) -> None:
+    if hasattr(user, ROLE_CACHE_ATTRIBUTE):
+        delattr(user, ROLE_CACHE_ATTRIBUTE)

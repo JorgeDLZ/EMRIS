@@ -153,6 +153,7 @@ def emergency_list(request):
             "status": status,
             "type_id": type_id,
             "query": query,
+            "filtered": bool(status or type_id or query),
             "status_choices": STATUS_CHOICES,
             "types": EmergencyType.objects.all(),
         },

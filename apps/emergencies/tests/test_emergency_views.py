@@ -657,6 +657,26 @@ def test_emergency_list_empty_state(client, db):
     client.force_login(make_user("olga", OPERATOR))
     html = client.get(reverse("emergencies:emergency_list")).content.decode()
     block = html.split('class="empty-state"')[1].split("</div>")[0]
-    assert "No emergencies match these filters." in block
+    assert "No emergencies yet." in block
     assert "Report emergency" in block
     assert f'href="{reverse("emergencies:emergency_create")}"' in block
+
+
+def test_empty_list_without_filters_says_no_emergencies_yet(client, db):
+    client.force_login(make_user("olga", OPERATOR))
+    response = client.get(reverse("emergencies:emergency_list"))
+    html = response.content.decode()
+    assert response.context["filtered"] is False
+    assert "No emergencies yet." in html
+    assert "No emergencies match these filters." not in html
+    assert reverse("emergencies:emergency_create") in html
+
+
+def test_empty_list_with_a_filter_says_no_match(client, make_emergency):
+    make_emergency()
+    client.force_login(make_user("olga", OPERATOR))
+    response = client.get(reverse("emergencies:emergency_list"), {"q": "nowhere"})
+    html = response.content.decode()
+    assert response.context["filtered"] is True
+    assert "No emergencies match these filters." in html
+    assert "No emergencies yet." not in html

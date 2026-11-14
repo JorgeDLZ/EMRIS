@@ -34,7 +34,7 @@ EMRIS (Emergency Management & Resource Information System) is a web application 
 
 Users without a role wait for an administrator to assign one.
 
-Sign-in is throttled: after 5 failed attempts for the same username and address, or 20 from the same address, within 15 minutes, further attempts are refused until the 15 minutes pass.
+Sign-in is throttled: after 5 failed attempts for the same username and address, or 20 from the same address, within 15 minutes, further attempts are refused until the 15 minutes pass. The client address comes from the proxy header named by `CLIENT_IP_HEADER` (`CF-Connecting-IP` on Render), otherwise from the direct connection address.
 
 ## Machine learning
 
@@ -181,6 +181,7 @@ python -m pytest
 | `DEBUG` | `True` for local development, `False` in production. |
 | `ALLOWED_HOSTS` | Comma-separated list of allowed host names. |
 | `CSRF_TRUSTED_ORIGINS` | Comma-separated list of trusted origins, including the scheme (for example `https://emris.onrender.com`). |
+| `CLIENT_IP_HEADER` | Name of the request header that carries the client address set by a trusted proxy (for example `CF-Connecting-IP`), used for sign-in throttling. Empty uses the direct connection address. |
 | `DATABASE_URL` | PostgreSQL connection URL. Defaults to local SQLite when unset. |
 
 ## Deployment on Render

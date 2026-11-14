@@ -12,6 +12,8 @@ class Bar:
 
     @property
     def step(self) -> int:
+        if self.value > 0:
+            return max(STEP, STEP * round(self.percent / STEP))
         return STEP * round(self.percent / STEP)
 
 

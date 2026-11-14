@@ -73,7 +73,15 @@ def test_action_owner_counts_only_own(client, make_emergency):
     client.force_login(owner)
     response = client.get(reverse("dashboard:index"))
     assert response.context["summary"]["active"] == 1
-    assert "1 active emergencies" in response.content.decode()
+    assert "1 active emergency," in response.content.decode()
+
+
+def test_dashboard_pluralises_active_emergencies(client, make_emergency):
+    make_emergency()
+    make_emergency()
+    client.force_login(make_user("ana", ADMINISTRATOR))
+    response = client.get(reverse("dashboard:index"))
+    assert "2 active emergencies," in response.content.decode()
 
 
 def test_dashboard_does_not_import_pandas():

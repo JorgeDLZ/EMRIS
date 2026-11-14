@@ -6,7 +6,7 @@
   <div class="page-header">
     <div>
       <h1>Dashboard</h1>
-      <p>{{ summary.active }} active emergencies, {{ summary.closed }} closed</p>
+      <p>{{ summary.active }} active emergenc{{ summary.active|pluralize:"y,ies" }}, {{ summary.closed }} closed</p>
     </div>
     <a class="btn btn-secondary" href="{% url 'dashboard:export_emergencies' %}">Download Excel</a>
   </div>
