@@ -10,6 +10,7 @@ from apps.accounts.permissions import role_required
 from apps.accounts.roles import CAPABILITIES
 from apps.intelligence.models import IMPACT, MUNICIPAL_RISK, PROFILES, Prediction
 from apps.intelligence.services import latest_predictions, predict_on_save, predict_profile
+from apps.places.models import Department, Municipality
 from apps.plans.models import DONE
 from apps.seismic.services import clear_link, confirm_link, suggest_link
 from ml.text import normalize_name
@@ -128,6 +129,12 @@ def emergency_list(request):
     else:
         type_id = ""
 
+    department = request.GET.get("department", "")
+    if department.isascii() and department.isdigit() and len(department) <= 9:
+        emergencies = emergencies.filter(municipality__department_id=int(department))
+    else:
+        department = ""
+
     query = request.GET.get("q", "").replace("\x00", "").strip()
     if query:
         emergencies = emergencies.filter(municipality__name_key__icontains=normalize_name(query))
@@ -153,9 +160,12 @@ def emergency_list(request):
             "status": status,
             "type_id": type_id,
             "query": query,
-            "filtered": bool(status or type_id or query),
+            "department": department,
+            "filtered": bool(status or type_id or department or query),
             "status_choices": STATUS_CHOICES,
             "types": EmergencyType.objects.all(),
+            "departments": Department.objects.order_by("name"),
+            "municipality_options": Municipality.objects.visible_to(request.user).as_options(),
         },
     )
 

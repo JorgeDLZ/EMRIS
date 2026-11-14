@@ -30,8 +30,17 @@
       </select>
     </div>
     <div class="form-field">
+      <label for="department">Department</label>
+      <select name="department" id="department">
+        <option value="">All departments</option>
+        {% for item in departments %}
+          <option value="{{ item.pk }}"{% if department == item.pk|stringformat:"s" %} selected{% endif %}>{{ item.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-field">
       <label for="q">Municipality</label>
-      <input type="text" name="q" id="q" value="{{ query }}">
+      <input type="text" name="q" id="q" value="{{ query }}" data-combobox="municipality" data-combobox-mode="text" data-department-field="department">
     </div>
     <div class="form-field">
       <button type="submit" class="btn btn-primary">Search</button>
@@ -73,9 +82,10 @@
   {% endif %}
   {% if page.has_other_pages %}
     <p class="pager">
-      {% if page.has_previous %}<a href="?status={{ status }}&amp;type={{ type_id }}&amp;q={{ query|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
+      {% if page.has_previous %}<a href="?status={{ status }}&amp;type={{ type_id }}&amp;department={{ department }}&amp;q={{ query|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
       <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
-      {% if page.has_next %}<a href="?status={{ status }}&amp;type={{ type_id }}&amp;q={{ query|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
+      {% if page.has_next %}<a href="?status={{ status }}&amp;type={{ type_id }}&amp;department={{ department }}&amp;q={{ query|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
     </p>
   {% endif %}
+  {{ municipality_options|json_script:"municipality-options" }}
 {% endblock %}

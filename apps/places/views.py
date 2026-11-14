@@ -43,6 +43,7 @@ def municipality_list(request):
             "departments": Department.objects.order_by("name"),
             "department": department,
             "query": query,
+            "municipality_options": Municipality.objects.visible_to(request.user).as_options(),
         },
     )
 

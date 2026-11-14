@@ -33,7 +33,7 @@
     </div>
     <div class="form-field">
       <label for="q">Municipality</label>
-      <input type="text" name="q" id="q" value="{{ cleaned.q }}">
+      <input type="text" name="q" id="q" value="{{ cleaned.q }}" data-combobox="municipality" data-combobox-mode="text" data-department-field="department" data-department-key="code">
     </div>
     <div class="form-field">
       <label for="from">From</label>
@@ -85,4 +85,5 @@
       {% if page.has_next %}<a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
     </p>
   {% endif %}
+  {{ municipality_options|json_script:"municipality-options" }}
 {% endblock %}

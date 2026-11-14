@@ -10,7 +10,7 @@ from apps.dashboard.exports import (
     xlsx_response,
 )
 from apps.emergencies.models import EmergencyType
-from apps.places.models import Department
+from apps.places.models import Department, Municipality
 from apps.plans.models import ACTION_CODE_CHOICES
 
 from .filters import HISTORY_PAGE_SIZE, filter_records, querystring
@@ -30,6 +30,7 @@ def record_list(request):
             "querystring": querystring(cleaned),
             "emergency_types": EmergencyType.objects.order_by("name"),
             "departments": Department.objects.order_by("name"),
+            "municipality_options": Municipality.objects.visible_to(request.user).as_options(),
         },
     )
 

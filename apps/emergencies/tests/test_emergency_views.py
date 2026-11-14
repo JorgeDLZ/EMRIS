@@ -694,3 +694,37 @@ def test_empty_list_with_a_filter_says_no_match(client, make_emergency):
     assert response.context["filtered"] is True
     assert "No emergencies match these filters." in html
     assert "No emergencies yet." not in html
+
+
+@pytest.fixture
+def cajica(db):
+    cundinamarca = Department.objects.create(code="25", name="CUNDINAMARCA")
+    return Municipality.objects.create(department=cundinamarca, code="25126", name="CAJICÁ")
+
+
+def test_emergency_list_filters_by_department(client, make_emergency, medellin, cajica):
+    in_antioquia = make_emergency()
+    make_emergency(municipality=cajica)
+    client.force_login(make_user("rita", RISK_MANAGER))
+    response = client.get(reverse("emergencies:emergency_list"), {"department": medellin.department_id})
+    assert list(response.context["page"].object_list) == [in_antioquia]
+    assert response.context["department"] == str(medellin.department_id)
+
+
+def test_emergency_list_ignores_bad_department(client, make_emergency):
+    make_emergency()
+    client.force_login(make_user("rita", RISK_MANAGER))
+    response = client.get(reverse("emergencies:emergency_list"), {"department": "abc"})
+    assert response.status_code == 200
+    assert len(response.context["page"].object_list) == 1
+    assert response.context["department"] == ""
+
+
+def test_emergency_list_pager_keeps_department(client, make_emergency, medellin):
+    for _ in range(26):
+        make_emergency()
+    client.force_login(make_user("rita", RISK_MANAGER))
+    html = client.get(
+        reverse("emergencies:emergency_list"), {"department": medellin.department_id}
+    ).content.decode()
+    assert f"department={medellin.department_id}&amp;" in html

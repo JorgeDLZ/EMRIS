@@ -20,7 +20,7 @@
     </div>
     <div class="form-field">
       <label for="q">Name</label>
-      <input type="text" name="q" id="q" value="{{ query }}">
+      <input type="text" name="q" id="q" value="{{ query }}" data-combobox="municipality" data-combobox-mode="text" data-department-field="department">
     </div>
     <div class="form-field">
       <button type="submit" class="btn btn-primary">Search</button>
@@ -56,4 +56,5 @@
       {% if page.has_next %}<a href="?department={{ department }}&amp;q={{ query|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
     </p>
   {% endif %}
+  {{ municipality_options|json_script:"municipality-options" }}
 {% endblock %}
