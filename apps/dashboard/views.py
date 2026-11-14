@@ -5,6 +5,7 @@ from apps.accounts.permissions import has_role, role_required
 from apps.accounts.roles import CAPABILITIES
 from apps.emergencies.policies import visible_emergencies
 
+from .charts import bars
 from .exports import (
     EMERGENCY_HEADER,
     RANKING_HEADER,
@@ -25,6 +26,9 @@ def index(request):
     summary = emergency_summary(visible_emergencies(request.user))
     context = {
         "summary": summary,
+        "status_bars": bars(summary["by_status"]),
+        "type_bars": bars(summary["by_type"]),
+        "profile_bars": bars(summary["by_profile"]),
         "seismic": seismic_activity(),
         "show_ranking": has_role(request.user, *CAPABILITIES["view_risk_ranking"]),
     }

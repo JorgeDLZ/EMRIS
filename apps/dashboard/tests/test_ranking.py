@@ -173,7 +173,9 @@ def test_unresolved_code_row_shows_code_and_empty_department(client, db):
     content = client.get(reverse("dashboard:ranking")).content.decode()
     row = content[content.index("<tr>", content.index("<tbody>")) : content.index("</tr>", content.index("<tbody>"))]
     cells = [" ".join(cell.split()) for cell in row.replace("<tr>", "").split("</td>")[:-1]]
-    assert [cell.replace("<td>", "").strip() for cell in cells] == ["1", "99999", "", "Risk level 1 of 3"]
+    assert [cell.replace("<td>", "").strip() for cell in cells] == [
+        "1", "99999", "", '<span class="badge badge-neutral">Risk level 1 of 3</span>'
+    ]
 
 
 def test_dashboard_shows_retrain_text_without_ranking(client, db):

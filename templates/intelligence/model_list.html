@@ -3,20 +3,25 @@
 {% block title %}EMRIS — Models{% endblock %}
 
 {% block content %}
-  <h1>Models</h1>
+  <div class="page-header">
+    <h1>Models</h1>
+    <form method="post" action="{% url 'intelligence:retrain' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary"{% if running %} disabled{% endif %}>Retrain</button>
+    </form>
+  </div>
   {% include "_messages.html" %}
-  <form method="post" action="{% url 'intelligence:retrain' %}">
-    {% csrf_token %}
-    <button type="submit"{% if running %} disabled{% endif %}>Retrain</button>
-  </form>
 
   {% for section in sections %}
-    <section>
+    <section class="card">
       <h2>{{ section.label }}</h2>
       {% if section.active %}
         <p>
           Active: {{ section.active }} — {{ section.active.primary_metric }} {{ section.active.score|floatformat:3 }}
         </p>
+        <ul class="bar-list">
+          <li><span>{{ section.active.primary_metric }}</span><span class="bar-track"><span class="bar w-{{ section.score_step }}"></span></span><span>{{ section.active.score|floatformat:3 }}</span></li>
+        </ul>
         <p>
           Trained on {{ section.active.trained_on.rows }} rows,
           {{ section.active.trained_on.start }} to {{ section.active.trained_on.end }}
@@ -32,52 +37,58 @@
         <p>No active model</p>
       {% endif %}
       {% if section.versions %}
-        <table>
-          <thead>
-            <tr><th>Version</th><th>Trained</th><th>Score</th><th>Status</th><th></th></tr>
-          </thead>
-          <tbody>
-            {% for version in section.versions %}
-              <tr>
-                <td>v{{ version.version }}</td>
-                <td>{{ version.trained_at|date:"Y-m-d H:i" }}</td>
-                <td>{{ version.score|floatformat:3 }}</td>
-                <td>{% if version.is_active %}Active{% endif %}</td>
-                <td>
-                  {% if not version.is_active %}
-                    <form method="post" action="{% url 'intelligence:activate' version.pk %}">
-                      {% csrf_token %}
-                      <button type="submit">Activate</button>
-                    </form>
-                  {% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Version</th><th>Trained</th><th>Score</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for version in section.versions %}
+                <tr>
+                  <td>v{{ version.version }}</td>
+                  <td>{{ version.trained_at|date:"Y-m-d H:i" }}</td>
+                  <td>{{ version.score|floatformat:3 }}</td>
+                  <td>{% if version.is_active %}<span class="badge badge-success">Active</span>{% endif %}</td>
+                  <td>
+                    {% if not version.is_active %}
+                      <form method="post" action="{% url 'intelligence:activate' version.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-secondary">Activate</button>
+                      </form>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       {% endif %}
     </section>
   {% endfor %}
 
   <h2>Recent training runs</h2>
   {% if runs %}
-    <table>
-      <thead>
-        <tr><th>Component</th><th>Status</th><th>Started</th><th>Finished</th><th>Message</th></tr>
-      </thead>
-      <tbody>
-        {% for run in runs %}
-          <tr>
-            <td>{{ run.get_component_display }}</td>
-            <td>{{ run.get_status_display }}</td>
-            <td>{{ run.started_at|date:"Y-m-d H:i" }}</td>
-            <td>{{ run.finished_at|date:"Y-m-d H:i"|default:"—" }}</td>
-            <td>{{ run.message }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Component</th><th>Status</th><th>Started</th><th>Finished</th><th>Message</th></tr>
+        </thead>
+        <tbody>
+          {% for run in runs %}
+            <tr>
+              <td>{{ run.get_component_display }}</td>
+              <td>{{ run.get_status_display }}</td>
+              <td>{{ run.started_at|date:"Y-m-d H:i" }}</td>
+              <td>{{ run.finished_at|date:"Y-m-d H:i"|default:"—" }}</td>
+              <td>{{ run.message }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   {% else %}
-    <p>No training runs yet.</p>
+    <div class="empty-state">
+      <p>No training runs yet.</p>
+    </div>
   {% endif %}
 {% endblock %}

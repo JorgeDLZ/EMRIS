@@ -21,6 +21,7 @@ from apps.intelligence.training import (
 logger = logging.getLogger(__name__)
 
 RECENT_RUNS = 20
+SCORE_STEP = 5
 
 
 def run_in_thread(runs):
@@ -49,10 +50,12 @@ def component_sections():
     for component, label in COMPONENT_CHOICES:
         items = by_component.get(component, [])
         active = next((version for version in items if version.is_active), None)
+        score_percent = max(0, min(100, round(active.score * 100))) if active else 0
         sections.append(
             {
                 "label": label,
                 "active": active,
+                "score_step": SCORE_STEP * round(score_percent / SCORE_STEP),
                 "metrics": scalar_metrics(active.metrics) if active else {},
                 "versions": items,
             }

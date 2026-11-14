@@ -3,93 +3,96 @@
 {% block title %}EMRIS — Dashboard{% endblock %}
 
 {% block content %}
-  <h1>Dashboard</h1>
+  <div class="page-header">
+    <div>
+      <h1>Dashboard</h1>
+      <p>{{ summary.active }} active emergencies, {{ summary.closed }} closed</p>
+    </div>
+    <a class="btn btn-secondary" href="{% url 'dashboard:export_emergencies' %}">Download Excel</a>
+  </div>
   {% include "_messages.html" %}
 
-  <section>
-    <h2>Active emergencies</h2>
-    <p>{{ summary.active }} active emergencies, {{ summary.closed }} closed</p>
-    <p><a href="{% url 'dashboard:export_emergencies' %}">Download Excel</a></p>
-    {% if summary.active %}
-      <h3>By status</h3>
-      <table>
-        <thead>
-          <tr><th>Status</th><th>Emergencies</th></tr>
-        </thead>
-        <tbody>
-          {% for label, count in summary.by_status %}
-            <tr><td>{{ label }}</td><td>{{ count }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <div class="card-grid">
+    <div class="card metric">
+      <span class="metric-value">{{ summary.active }}</span>
+      <span class="metric-label">Active emergencies</span>
+    </div>
+    <div class="card metric">
+      <span class="metric-value">{{ summary.closed }}</span>
+      <span class="metric-label">Closed emergencies</span>
+    </div>
+  </div>
 
-      <h3>By type</h3>
-      <table>
-        <thead>
-          <tr><th>Type</th><th>Emergencies</th></tr>
-        </thead>
-        <tbody>
-          {% for name, count in summary.by_type %}
-            <tr><td>{{ name }}</td><td>{{ count }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  {% if summary.active %}
+    <div class="card-grid">
+      <section class="card">
+        <h2>By status</h2>
+        {% include "dashboard/_bars.html" with bars=status_bars %}
+      </section>
+      <section class="card">
+        <h2>By type</h2>
+        {% include "dashboard/_bars.html" with bars=type_bars %}
+      </section>
+      <section class="card">
+        <h2>By profile</h2>
+        {% include "dashboard/_bars.html" with bars=profile_bars %}
+      </section>
+    </div>
 
-      <h3>Top municipalities</h3>
-      <table>
-        <thead>
-          <tr><th>Municipality</th><th>Department</th><th>Emergencies</th></tr>
-        </thead>
-        <tbody>
-          {% for municipality, department, count in summary.by_municipality %}
-            <tr><td>{{ municipality }}</td><td>{{ department }}</td><td>{{ count }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-
-      <h3>By profile</h3>
-      <table>
-        <thead>
-          <tr><th>Profile</th><th>Emergencies</th></tr>
-        </thead>
-        <tbody>
-          {% for profile, count in summary.by_profile %}
-            <tr><td>{{ profile }}</td><td>{{ count }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    {% else %}
+    <section>
+      <h2>Top municipalities</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Municipality</th><th>Department</th><th>Emergencies</th></tr>
+          </thead>
+          <tbody>
+            {% for municipality, department, count in summary.by_municipality %}
+              <tr><td>{{ municipality }}</td><td>{{ department }}</td><td>{{ count }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% else %}
+    <div class="empty-state">
       <p>No active emergencies.</p>
-    {% endif %}
-  </section>
+    </div>
+  {% endif %}
 
   <section>
     <h2>Seismic activity</h2>
     {% if seismic.catalog_end %}
       <p>Catalog up to {{ seismic.catalog_end|date:"Y-m-d" }}.</p>
-      <p>{{ seismic.event_count }} events in the last 30 days of the catalog.</p>
+      <p>{{ seismic.event_count }} event{{ seismic.event_count|pluralize }} in the last 30 days of the catalog.</p>
       {% if seismic.events %}
-        <table>
-          <thead>
-            <tr><th>Date</th><th>Magnitude</th><th>Depth (km)</th><th>Place</th><th>Municipality</th></tr>
-          </thead>
-          <tbody>
-            {% for event in seismic.events %}
-              <tr>
-                <td>{{ event.event_time|date:"Y-m-d H:i" }}</td>
-                <td>{{ event.magnitude|floatformat:1 }}</td>
-                <td>{{ event.depth_km|floatformat:1 }}</td>
-                <td>{{ event.place }}</td>
-                <td>{% if event.municipality %}{{ event.municipality.name }} ({{ event.municipality.department.name }}){% endif %}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Date</th><th>Magnitude</th><th>Depth (km)</th><th>Place</th><th>Municipality</th></tr>
+            </thead>
+            <tbody>
+              {% for event in seismic.events %}
+                <tr>
+                  <td>{{ event.event_time|date:"Y-m-d H:i" }}</td>
+                  <td>{{ event.magnitude|floatformat:1 }}</td>
+                  <td>{{ event.depth_km|floatformat:1 }}</td>
+                  <td>{{ event.place }}</td>
+                  <td>{% if event.municipality %}{{ event.municipality.name }} ({{ event.municipality.department.name }}){% endif %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       {% else %}
-        <p>No events of magnitude 4.0 or more in this period.</p>
+        <div class="empty-state">
+          <p>No events of magnitude 4.0 or more in this period.</p>
+        </div>
       {% endif %}
     {% else %}
-      <p>No seismic events loaded.</p>
+      <div class="empty-state">
+        <p>No seismic events loaded.</p>
+      </div>
     {% endif %}
   </section>
 
@@ -97,26 +100,32 @@
     <section>
       <h2>Municipal risk ranking</h2>
       {% if ranking.available %}
-        <table>
-          <thead>
-            <tr><th>Position</th><th>Municipality</th><th>Department</th><th>Risk level</th></tr>
-          </thead>
-          <tbody>
-            {% for row in top_rows %}
-              <tr>
-                <td>{{ row.position }}</td>
-                <td>{% if row.municipality %}{{ row.municipality.name }}{% else %}{{ row.code }}{% endif %}</td>
-                <td>{{ row.municipality.department.name }}</td>
-                <td>Risk level {{ row.level }} of {{ row.k }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Position</th><th>Municipality</th><th>Department</th><th>Risk level</th></tr>
+            </thead>
+            <tbody>
+              {% for row in top_rows %}
+                <tr>
+                  <td>{{ row.position }}</td>
+                  <td>{% if row.municipality %}{{ row.municipality.name }}{% else %}{{ row.code }}{% endif %}</td>
+                  <td>{{ row.municipality.department.name }}</td>
+                  <td>{% include "dashboard/_risk_badge.html" %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
         <p><a href="{% url 'dashboard:ranking' %}">See the full ranking</a></p>
       {% elif ranking.version %}
-        <p>The ranking appears after the next retrain.</p>
+        <div class="empty-state">
+          <p>The ranking appears after the next retrain.</p>
+        </div>
       {% else %}
-        <p>No active municipal risk model.</p>
+        <div class="empty-state">
+          <p>No active municipal risk model.</p>
+        </div>
       {% endif %}
     </section>
   {% endif %}

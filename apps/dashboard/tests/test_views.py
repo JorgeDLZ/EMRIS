@@ -107,7 +107,7 @@ def test_dashboard_shows_seismic_panel_to_every_role(client, db):
         html = client.get(reverse("dashboard:index")).content.decode()
         assert "Seismic activity" in html
         assert "Catalog up to" in html
-        assert "1 events in the last 30 days of the catalog." in html
+        assert "1 event in the last 30 days of the catalog." in html
         assert "<td>5.3</td>" in html
         assert "<td>12.3</td>" in html
         assert "MEDELLIN (ANTIOQUIA)" in html

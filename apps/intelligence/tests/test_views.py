@@ -50,7 +50,7 @@ def test_page_lists_versions_and_runs(client, db, synthetic):
     assert "Impact estimator" in content
     assert "Municipal risk" in content
     assert "No active model" not in content
-    assert '<button type="submit">Retrain</button>' in content
+    assert '<button type="submit" class="btn btn-primary">Retrain</button>' in content
     assert "disabled" not in content
 
 
@@ -71,7 +71,7 @@ def test_retrain_twice_is_refused(client, db, synthetic):
     assert messages_of(response) == ["A training run is already in progress."]
     assert TrainingRun.objects.count() == 1
     page = client.get(reverse("intelligence:model_list")).content.decode()
-    assert '<button type="submit" disabled>Retrain</button>' in page
+    assert '<button type="submit" class="btn btn-primary" disabled>Retrain</button>' in page
 
 
 def test_rollback_activates_earlier_version(client, db, synthetic):
@@ -171,3 +171,15 @@ def test_key_metrics_show_text_and_rounded_floats(client, db, synthetic):
     content = client.get(reverse("intelligence:model_list")).content.decode()
     assert f"model: {active.metrics['model']}" in content
     assert f"f1: {round(active.metrics['f1'], 3)}" in content
+
+
+def test_score_bar_step_is_clamped(db):
+    for component, score in (("impact", 0.734), ("profiles", -0.05)):
+        ModelVersion.objects.create(
+            component=component, version=1, artifact=b"", primary_metric="score", score=score,
+            metrics={}, trained_on={}, library_versions={}, is_active=True,
+        )
+    steps = {section["label"]: section["score_step"] for section in views.component_sections()}
+    assert steps["Impact estimator"] == 75
+    assert steps["Emergency profiles"] == 0
+    assert steps["Municipal risk"] == 0

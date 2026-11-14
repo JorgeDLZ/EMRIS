@@ -1,0 +1,5 @@
+<ul class="bar-list">
+  {% for bar in bars %}
+    <li><span>{{ bar.label }}</span><span class="bar-track"><span class="bar w-{{ bar.step }}"></span></span><span>{{ bar.value }}</span></li>
+  {% endfor %}
+</ul>

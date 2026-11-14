@@ -3,17 +3,24 @@
 {% block title %}EMRIS — Municipal risk ranking{% endblock %}
 
 {% block content %}
-  <h1>Municipal risk ranking</h1>
+  <div class="page-header">
+    <div>
+      <h1>Municipal risk ranking</h1>
+      {% if ranking.available %}<p>Model: {{ ranking.version }}</p>{% endif %}
+    </div>
+    {% if ranking.available %}
+      <a class="btn btn-secondary" href="{% url 'dashboard:export_ranking' %}{% if department %}?department={{ department|urlencode }}{% endif %}">Download Excel</a>
+    {% endif %}
+  </div>
   {% include "_messages.html" %}
 
   {% if ranking.available %}
-    <p>Model: {{ ranking.version }}</p>
     {% if ranking.insufficient_history %}
       <p>{{ ranking.insufficient_history }} municipalities with insufficient history are not ranked.</p>
     {% endif %}
 
-    <form method="get" class="card">
-      <p>
+    <form method="get" class="card filter-bar">
+      <div class="form-field">
         <label for="department">Department</label>
         <select name="department" id="department">
           <option value="">All departments</option>
@@ -21,38 +28,44 @@
             <option value="{{ item.code }}"{% if department == item.code %} selected{% endif %}>{{ item.name }}</option>
           {% endfor %}
         </select>
-        <button type="submit">Filter</button>
-      </p>
+      </div>
+      <div class="form-field">
+        <button type="submit" class="btn btn-primary">Filter</button>
+      </div>
     </form>
 
-    <p><a href="{% url 'dashboard:export_ranking' %}{% if department %}?department={{ department|urlencode }}{% endif %}">Download Excel</a></p>
-
-    <table>
-      <thead>
-        <tr><th>Position</th><th>Municipality</th><th>Department</th><th>Risk level</th></tr>
-      </thead>
-      <tbody>
-        {% for row in page %}
-          <tr>
-            <td>{{ row.position }}</td>
-            <td>{% if row.municipality %}{{ row.municipality.name }}{% else %}{{ row.code }}{% endif %}</td>
-            <td>{{ row.municipality.department.name }}</td>
-            <td>Risk level {{ row.level }} of {{ row.k }}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Position</th><th>Municipality</th><th>Department</th><th>Risk level</th></tr>
+        </thead>
+        <tbody>
+          {% for row in page %}
+            <tr>
+              <td>{{ row.position }}</td>
+              <td>{% if row.municipality %}{{ row.municipality.name }}{% else %}{{ row.code }}{% endif %}</td>
+              <td>{{ row.municipality.department.name }}</td>
+              <td>{% include "dashboard/_risk_badge.html" %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
 
     {% if page.has_other_pages %}
-      <p>
+      <p class="pager">
         {% if page.has_previous %}<a href="?department={{ department|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
-        Page {{ page.number }} of {{ page.paginator.num_pages }}
+        <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
         {% if page.has_next %}<a href="?department={{ department|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
       </p>
     {% endif %}
   {% elif ranking.version %}
-    <p>The ranking appears after the next retrain.</p>
+    <div class="empty-state">
+      <p>The ranking appears after the next retrain.</p>
+    </div>
   {% else %}
-    <p>No active municipal risk model.</p>
+    <div class="empty-state">
+      <p>No active municipal risk model.</p>
+    </div>
   {% endif %}
 {% endblock %}
