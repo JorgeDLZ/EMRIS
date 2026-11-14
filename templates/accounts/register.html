@@ -1,13 +1,15 @@
-{% extends "base.html" %}
+{% extends "public_base.html" %}
 
 {% block title %}EMRIS — Register{% endblock %}
 
 {% block content %}
-  <h1>Register</h1>
-  <form method="post" class="card">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Create account</button>
-  </form>
-  <p>Already registered? <a href="{% url 'accounts:login' %}">Log in</a></p>
+  <div class="auth-panel">
+    <h1>Register</h1>
+    <form method="post" class="card">
+      {% csrf_token %}
+      {% include "_form_fields.html" %}
+      <button type="submit" class="btn btn-primary">Create account</button>
+    </form>
+    <p>Already registered? <a href="{% url 'accounts:login' %}">Log in</a></p>
+  </div>
 {% endblock %}

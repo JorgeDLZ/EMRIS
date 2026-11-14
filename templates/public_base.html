@@ -1,0 +1,37 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}EMRIS{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap">
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <header class="public-header">
+    <a class="brand" href="{% url 'home' %}">EMRIS</a>
+    <nav>
+      {% block header_actions %}
+        {% if user.is_authenticated %}
+          {% if user.role_label or user.is_superuser %}
+            <a class="btn btn-primary" href="{% url 'dashboard:index' %}">Open dashboard</a>
+          {% else %}
+            <a class="btn btn-primary" href="{% url 'accounts:pending' %}">Check account status</a>
+          {% endif %}
+        {% else %}
+          <a class="btn btn-secondary" href="{% url 'accounts:login' %}">Log in</a>
+          <a class="btn btn-primary" href="{% url 'accounts:register' %}">Register</a>
+        {% endif %}
+      {% endblock %}
+    </nav>
+  </header>
+  <main id="content" class="public-main">
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="public-footer">EMRIS &middot; Emergency Management &amp; Resource Information System</footer>
+</body>
+</html>

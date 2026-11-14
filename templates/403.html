@@ -1,9 +1,12 @@
-{% extends "base.html" %}
+{% extends "public_base.html" %}
 
 {% block title %}EMRIS — Access denied{% endblock %}
 
 {% block content %}
-  <h1>Access denied</h1>
-  <p>Your role does not allow you to open this page.</p>
-  <p><a href="{% url 'home' %}">Back to home</a></p>
+  <div class="status-page">
+    <p class="status-code">403</p>
+    <h1>Access denied</h1>
+    <p>Your role does not allow you to open this page.</p>
+    <a class="btn btn-secondary" href="{% url 'home' %}">Back to home</a>
+  </div>
 {% endblock %}

@@ -16,6 +16,7 @@ def ok(request):
 urlpatterns = [
     path("boom/", raise_operational_error),
     path("ok/", ok),
+    path("", ok, name="home"),
 ]
 
 

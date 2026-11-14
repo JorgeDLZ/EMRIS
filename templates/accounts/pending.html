@@ -1,8 +1,14 @@
-{% extends "base.html" %}
+{% extends "public_base.html" %}
 
 {% block title %}EMRIS — Awaiting role{% endblock %}
 
 {% block content %}
-  <h1>Awaiting role assignment</h1>
-  <p>Your account has been created. An administrator must assign you a role before you can use the system.</p>
+  <div class="status-page">
+    <h1>Awaiting role assignment</h1>
+    <p>Your account has been created. An administrator must assign you a role before you can use the system.</p>
+    <form method="post" action="{% url 'accounts:logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-secondary">Log out</button>
+    </form>
+  </div>
 {% endblock %}

@@ -1,0 +1,14 @@
+{% extends "public_base.html" %}
+
+{% block title %}EMRIS — Server error{% endblock %}
+
+{% block header_actions %}{% endblock %}
+
+{% block content %}
+  <div class="status-page">
+    <p class="status-code">500</p>
+    <h1>Something went wrong</h1>
+    <p>An unexpected error occurred. Please try again in a moment.</p>
+    <a class="btn btn-secondary" href="{% url 'home' %}">Back to home</a>
+  </div>
+{% endblock %}
