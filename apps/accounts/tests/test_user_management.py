@@ -127,3 +127,12 @@ def test_user_list_link_only_for_administrators(client, db):
 
     client.force_login(make_user("olga", OPERATOR))
     assert link not in client.get(reverse("dashboard:index")).content.decode()
+
+
+def test_user_list_role_badges(client, db):
+    make_user("olga", OPERATOR)
+    make_user("nora")
+    client.force_login(make_user("adam", ADMINISTRATOR))
+    html = client.get(reverse("accounts:user_list")).content.decode()
+    assert '<span class="badge badge-info">Operator</span>' in html
+    assert '<span class="badge badge-warning">No role</span>' in html

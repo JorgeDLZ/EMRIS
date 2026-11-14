@@ -3,12 +3,14 @@
 {% block title %}EMRIS — Register municipality{% endblock %}
 
 {% block content %}
-  <h1>Register a municipality</h1>
+  <div class="page-header">
+    <h1>Register a municipality</h1>
+  </div>
   {% include "_messages.html" %}
   {% if similar %}
     <div class="card">
       <p>Similar municipalities already exist in this department:</p>
-      <ul>
+      <ul class="plain-list">
         {% for item in similar %}
           <li>{{ item.name }}</li>
         {% endfor %}
@@ -18,8 +20,10 @@
   {% endif %}
   <form method="post" class="card">
     {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Register</button>
+    {% include "_form_fields.html" %}
+    <div class="form-card-actions">
+      <button type="submit" class="btn btn-primary">Register</button>
+      <a href="{% url 'places:municipality_list' %}">Back to municipalities</a>
+    </div>
   </form>
-  <p><a href="{% url 'places:municipality_list' %}">Back to municipalities</a></p>
 {% endblock %}

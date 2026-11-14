@@ -3,10 +3,13 @@
 {% block title %}EMRIS — Municipalities{% endblock %}
 
 {% block content %}
-  <h1>Municipalities</h1>
+  <div class="page-header">
+    <h1>Municipalities</h1>
+    <a class="btn btn-primary" href="{% url 'places:municipality_create' %}">Register a municipality</a>
+  </div>
   {% include "_messages.html" %}
-  <form method="get" class="card">
-    <p>
+  <form method="get" class="card filter-bar">
+    <div class="form-field">
       <label for="department">Department</label>
       <select name="department" id="department">
         <option value="">All departments</option>
@@ -14,34 +17,42 @@
           <option value="{{ item.pk }}"{% if department == item.pk|stringformat:"s" %} selected{% endif %}>{{ item.name }}</option>
         {% endfor %}
       </select>
-    </p>
-    <p>
+    </div>
+    <div class="form-field">
       <label for="q">Name</label>
       <input type="text" name="q" id="q" value="{{ query }}">
-    </p>
-    <button type="submit">Search</button>
+    </div>
+    <div class="form-field">
+      <button type="submit" class="btn btn-primary">Search</button>
+    </div>
   </form>
-  <p><a href="{% url 'places:municipality_create' %}">Register a municipality</a></p>
-  <table>
-    <thead>
-      <tr><th>Name</th><th>Department</th><th>Status</th></tr>
-    </thead>
-    <tbody>
-      {% for item in page %}
-        <tr>
-          <td>{{ item.name }}</td>
-          <td>{{ item.department.name }}</td>
-          <td>{{ item.get_validation_display }}</td>
-        </tr>
-      {% empty %}
-        <tr><td colspan="3">No municipalities found.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  {% if page.object_list %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Department</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for item in page %}
+            <tr>
+              <td>{{ item.name }}</td>
+              <td>{{ item.department.name }}</td>
+              <td><span class="badge {% if item.validation == "pending" %}badge-warning{% else %}badge-success{% endif %}">{{ item.get_validation_display }}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <p>No municipalities found.</p>
+      <a class="btn btn-primary" href="{% url 'places:municipality_create' %}">Register a municipality</a>
+    </div>
+  {% endif %}
   {% if page.has_other_pages %}
-    <p>
+    <p class="pager">
       {% if page.has_previous %}<a href="?department={{ department }}&amp;q={{ query|urlencode }}&amp;page={{ page.previous_page_number }}">Previous</a>{% endif %}
-      Page {{ page.number }} of {{ page.paginator.num_pages }}
+      <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
       {% if page.has_next %}<a href="?department={{ department }}&amp;q={{ query|urlencode }}&amp;page={{ page.next_page_number }}">Next</a>{% endif %}
     </p>
   {% endif %}

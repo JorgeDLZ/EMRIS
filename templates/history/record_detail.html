@@ -3,53 +3,60 @@
 {% block title %}EMRIS — UNGRD record {{ record.source_row }}{% endblock %}
 
 {% block content %}
-  <h1>UNGRD record {{ record.source_row }}</h1>
+  <div class="page-header">
+    <h1>UNGRD record {{ record.source_row }}</h1>
+    {% if record.is_high_impact %}{% include "_high_impact_badge.html" %}{% endif %}
+  </div>
   {% include "_messages.html" %}
 
-  <section class="card">
-    <ul>
-      <li>Date: {{ record.occurred_on|date:"Y-m-d" }}</li>
-      <li>Type: {{ record.emergency_type.name }}</li>
-      <li>Municipality: {% if record.municipality %}{{ record.municipality.name }}{% else %}Department level{% endif %}</li>
-      <li>Department: {{ record.department.name }}</li>
-      <li>Source code: {{ record.source_code }}</li>
-    </ul>
-  </section>
+  <div class="card-stack">
+    <section class="card">
+      <dl class="detail-list">
+        <dt>Date</dt><dd>{{ record.occurred_on|date:"Y-m-d" }}</dd>
+        <dt>Type</dt><dd>{{ record.emergency_type.name }}</dd>
+        <dt>Municipality</dt><dd>{% if record.municipality %}{{ record.municipality.name }}{% else %}Department level{% endif %}</dd>
+        <dt>Department</dt><dd>{{ record.department.name }}</dd>
+        <dt>Source code</dt><dd>{{ record.source_code }}</dd>
+      </dl>
+    </section>
 
-  <section class="card">
-    <h2>Impact</h2>
-    <table>
-      <tbody>
-        <tr><th>Deceased</th><td>{{ record.deceased }}</td></tr>
-        <tr><th>Injured</th><td>{{ record.injured }}</td></tr>
-        <tr><th>Missing</th><td>{{ record.missing }}</td></tr>
-        <tr><th>People affected</th><td>{{ record.people_affected }}</td></tr>
-        <tr><th>Families affected</th><td>{{ record.families_affected }}</td></tr>
-        <tr><th>Homes destroyed</th><td>{{ record.homes_destroyed }}</td></tr>
-        <tr><th>Homes damaged</th><td>{{ record.homes_damaged }}</td></tr>
-        <tr><th>Roads damaged</th><td>{{ record.roads_damaged }}</td></tr>
-        <tr><th>Bridges damaged</th><td>{{ record.bridges_damaged }}</td></tr>
-        <tr><th>Hectares</th><td>{{ record.hectares }}</td></tr>
-      </tbody>
-    </table>
-    <p>High impact: {% if record.is_high_impact %}Yes{% else %}No{% endif %}</p>
-  </section>
+    <section class="card">
+      <h2>Impact</h2>
+      <div class="table-wrap">
+        <table>
+          <tbody>
+            <tr><th>Deceased</th><td>{{ record.deceased }}</td></tr>
+            <tr><th>Injured</th><td>{{ record.injured }}</td></tr>
+            <tr><th>Missing</th><td>{{ record.missing }}</td></tr>
+            <tr><th>People affected</th><td>{{ record.people_affected }}</td></tr>
+            <tr><th>Families affected</th><td>{{ record.families_affected }}</td></tr>
+            <tr><th>Homes destroyed</th><td>{{ record.homes_destroyed }}</td></tr>
+            <tr><th>Homes damaged</th><td>{{ record.homes_damaged }}</td></tr>
+            <tr><th>Roads damaged</th><td>{{ record.roads_damaged }}</td></tr>
+            <tr><th>Bridges damaged</th><td>{{ record.bridges_damaged }}</td></tr>
+            <tr><th>Hectares</th><td>{{ record.hectares }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>High impact: {% if record.is_high_impact %}{% include "_high_impact_badge.html" %}{% else %}No{% endif %}</p>
+    </section>
 
-  <section class="card">
-    <h2>Comments</h2>
-    <p>{{ record.comments|linebreaksbr }}</p>
-  </section>
+    <section class="card">
+      <h2>Comments</h2>
+      <p>{{ record.comments|linebreaksbr }}</p>
+    </section>
 
-  <section class="card">
-    <h2>Actions</h2>
-    {% if actions %}
-      <ul>
-        {% for label in actions %}<li>{{ label }}</li>{% endfor %}
-      </ul>
-    {% else %}
-      <p>No actions recorded.</p>
-    {% endif %}
-  </section>
+    <section class="card">
+      <h2>Actions</h2>
+      {% if actions %}
+        <ul class="plain-list">
+          {% for label in actions %}<li>{{ label }}</li>{% endfor %}
+        </ul>
+      {% else %}
+        <p>No actions recorded.</p>
+      {% endif %}
+    </section>
+  </div>
 
-  <p><a href="{% url 'history:record_list' %}">Back to the history</a></p>
+  <p class="back-link"><a href="{% url 'history:record_list' %}">Back to the history</a></p>
 {% endblock %}

@@ -3,32 +3,43 @@
 {% block title %}EMRIS — Pending municipalities{% endblock %}
 
 {% block content %}
-  <h1>Pending municipalities</h1>
+  <div class="page-header">
+    <h1>Pending municipalities</h1>
+  </div>
   {% include "_messages.html" %}
-  <table>
-    <thead>
-      <tr><th>Name</th><th>Department</th><th>Registered by</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for item in municipalities %}
-        <tr>
-          <td>{{ item.name }}</td>
-          <td>{{ item.department.name }}</td>
-          <td>{{ item.created_by.username|default:"Unknown" }}</td>
-          <td>
-            <form method="post" action="{% url 'places:municipality_approve' item.pk %}">
-              {% csrf_token %}
-              <button type="submit">Approve</button>
-            </form>
-            <form method="post" action="{% url 'places:municipality_reject' item.pk %}">
-              {% csrf_token %}
-              <button type="submit">Reject</button>
-            </form>
-          </td>
-        </tr>
-      {% empty %}
-        <tr><td colspan="4">No municipalities are waiting for validation.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  {% if municipalities %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Department</th><th>Status</th><th>Registered by</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for item in municipalities %}
+            <tr>
+              <td>{{ item.name }}</td>
+              <td>{{ item.department.name }}</td>
+              <td><span class="badge badge-warning">{{ item.get_validation_display }}</span></td>
+              <td>{{ item.created_by.username|default:"Unknown" }}</td>
+              <td>
+                <div class="cell-actions">
+                  <form method="post" class="inline-form" action="{% url 'places:municipality_approve' item.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary">Approve</button>
+                  </form>
+                  <form method="post" class="inline-form" action="{% url 'places:municipality_reject' item.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-secondary">Reject</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <p>No municipalities are waiting for validation.</p>
+    </div>
+  {% endif %}
 {% endblock %}

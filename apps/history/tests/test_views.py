@@ -117,7 +117,7 @@ def test_detail_shows_impact_comments_and_actions(logged, world):
     assert "A-7" in html
     assert "Deceased" in html and "Hectares" in html
     assert "<td>2.5</td>" in html
-    assert "High impact: Yes" in html
+    assert 'High impact: <span class="badge badge-danger">' in html
     assert "line one<br>line two" in html
     assert "Clear and reopen roads" in html
     assert "mystery_code" in html
@@ -218,3 +218,9 @@ def test_non_ascii_digit_type_is_ignored(logged, records):
     response = logged.get(reverse("history:record_list"), {"type": "²"})
     assert response.status_code == 200
     assert response.context["cleaned"]["type"] == ""
+
+
+def test_history_high_impact_badge(logged, records):
+    html = logged.get(reverse("history:record_list")).content.decode()
+    assert html.count("badge badge-danger") == 1
+    assert "High impact</span>" in html

@@ -3,11 +3,17 @@
 {% block title %}EMRIS — UNGRD history{% endblock %}
 
 {% block content %}
-  <h1>UNGRD history</h1>
+  <div class="page-header">
+    <div>
+      <h1>UNGRD history</h1>
+      <p>{{ page.paginator.count }} records</p>
+    </div>
+    <a class="btn btn-secondary" href="{% url 'history:export' %}{% if querystring %}?{{ querystring }}{% endif %}">Download Excel</a>
+  </div>
   {% include "_messages.html" %}
 
-  <form method="get" class="card">
-    <p>
+  <form method="get" class="card filter-bar">
+    <div class="form-field">
       <label for="type">Type</label>
       <select name="type" id="type">
         <option value="">All</option>
@@ -15,6 +21,8 @@
           <option value="{{ item.pk }}"{% if cleaned.type == item.pk|stringformat:"s" %} selected{% endif %}>{{ item.name }}</option>
         {% endfor %}
       </select>
+    </div>
+    <div class="form-field">
       <label for="department">Department</label>
       <select name="department" id="department">
         <option value="">All</option>
@@ -22,51 +30,60 @@
           <option value="{{ item.code }}"{% if cleaned.department == item.code %} selected{% endif %}>{{ item.name }}</option>
         {% endfor %}
       </select>
+    </div>
+    <div class="form-field">
       <label for="q">Municipality</label>
       <input type="text" name="q" id="q" value="{{ cleaned.q }}">
-    </p>
-    <p>
+    </div>
+    <div class="form-field">
       <label for="from">From</label>
       <input type="date" name="from" id="from" value="{{ cleaned.from }}">
+    </div>
+    <div class="form-field">
       <label for="to">To</label>
       <input type="date" name="to" id="to" value="{{ cleaned.to }}">
+    </div>
+    <div class="form-field">
       <label for="high">
         <input type="checkbox" name="high" id="high" value="1"{% if cleaned.high %} checked{% endif %}>
         High impact only
       </label>
-      <button type="submit">Filter</button>
-    </p>
+    </div>
+    <div class="form-field">
+      <button type="submit" class="btn btn-primary">Filter</button>
+    </div>
   </form>
 
-  <p>{{ page.paginator.count }} records</p>
-  <p><a href="{% url 'history:export' %}{% if querystring %}?{{ querystring }}{% endif %}">Download Excel</a></p>
-
   {% if page.object_list %}
-    <table>
-      <thead>
-        <tr><th>Date</th><th>Type</th><th>Municipality</th><th>Department</th><th>High impact</th><th></th></tr>
-      </thead>
-      <tbody>
-        {% for record in page %}
-          <tr>
-            <td>{{ record.occurred_on|date:"Y-m-d" }}</td>
-            <td>{{ record.emergency_type.name }}</td>
-            <td>{% if record.municipality %}{{ record.municipality.name }}{% else %}Department level{% endif %}</td>
-            <td>{{ record.department.name }}</td>
-            <td>{% if record.is_high_impact %}Yes{% endif %}</td>
-            <td><a href="{% url 'history:record_detail' record.source_row %}">View</a></td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Type</th><th>Municipality</th><th>Department</th><th>High impact</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for record in page %}
+            <tr>
+              <td>{{ record.occurred_on|date:"Y-m-d" }}</td>
+              <td>{{ record.emergency_type.name }}</td>
+              <td>{% if record.municipality %}{{ record.municipality.name }}{% else %}Department level{% endif %}</td>
+              <td>{{ record.department.name }}</td>
+              <td>{% if record.is_high_impact %}{% include "_high_impact_badge.html" %}{% endif %}</td>
+              <td><a href="{% url 'history:record_detail' record.source_row %}">View</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   {% else %}
-    <p>No records match these filters.</p>
+    <div class="empty-state">
+      <p>No records match these filters.</p>
+    </div>
   {% endif %}
 
   {% if page.has_other_pages %}
-    <p>
+    <p class="pager">
       {% if page.has_previous %}<a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
-      Page {{ page.number }} of {{ page.paginator.num_pages }}
+      <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
       {% if page.has_next %}<a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
     </p>
   {% endif %}

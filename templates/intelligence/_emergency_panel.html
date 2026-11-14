@@ -7,7 +7,7 @@
         <p>Estimated high-impact probability: {{ panel.impact.percent }} %</p>
         <p>
           {% if panel.impact.is_high_impact %}
-            <span class="badge badge-danger"><svg class="badge-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 21h20L12 3z"/><path d="M12 10v5"/><path d="M12 18h.01"/></svg>High impact</span>
+            {% include "_high_impact_badge.html" %}
           {% else %}
             <span class="badge badge-neutral">Not high impact</span>
           {% endif %}

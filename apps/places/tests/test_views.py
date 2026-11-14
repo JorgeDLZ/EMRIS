@@ -216,3 +216,32 @@ def test_list_ignores_unusable_department_values(client, medellin, value):
     response = client.get(reverse("places:municipality_list"), {"department": value})
     assert response.status_code == 200
     assert response.context["department"] == ""
+
+
+def test_municipality_form_error_next_to_field(client, medellin):
+    client.force_login(make_user("olga", OPERATOR))
+    response = client.post(
+        reverse("places:municipality_create"),
+        {"department": medellin.department.pk, "name": "medellin", "confirm_new": "on"},
+    )
+    html = response.content.decode()
+    name_input = html.index('name="name"')
+    assert 0 < html.index("field-error", name_input) - name_input < 400
+    assert html.index("field-error", name_input) < html.index('name="confirm_new"')
+
+
+def test_pending_municipalities_empty_state(client, db):
+    client.force_login(make_user("rita", RISK_MANAGER))
+    html = client.get(reverse("places:municipality_pending")).content.decode()
+    assert '<div class="empty-state">' in html
+    assert "No municipalities are waiting for validation." in html
+    assert "<table" not in html
+
+
+def test_pending_municipalities_actions_are_buttons(client, antioquia):
+    Municipality.objects.create(department=antioquia, name="Uno", validation=Municipality.PENDING)
+    client.force_login(make_user("rita", RISK_MANAGER))
+    html = client.get(reverse("places:municipality_pending")).content.decode()
+    assert "badge badge-warning" in html
+    assert 'class="btn btn-primary"' in html
+    assert 'class="btn btn-secondary"' in html

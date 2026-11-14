@@ -3,21 +3,25 @@
 {% block title %}EMRIS — Users{% endblock %}
 
 {% block content %}
-  <h1>Users</h1>
+  <div class="page-header">
+    <h1>Users</h1>
+  </div>
   {% include "_messages.html" %}
-  <table>
-    <thead>
-      <tr><th>Username</th><th>Organization</th><th>Role</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for item in users %}
-        <tr>
-          <td>{{ item.username }}</td>
-          <td>{{ item.organization }}</td>
-          <td>{{ item.role_label|default:"No role" }}</td>
-          <td><a href="{% url 'accounts:user_role' item.pk %}">Change role</a></td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Username</th><th>Organization</th><th>Role</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for item in users %}
+          <tr>
+            <td>{{ item.username }}</td>
+            <td>{{ item.organization }}</td>
+            <td>{% if item.role_label %}<span class="badge badge-info">{{ item.role_label }}</span>{% else %}<span class="badge badge-warning">No role</span>{% endif %}</td>
+            <td><a href="{% url 'accounts:user_role' item.pk %}">Change role</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 {% endblock %}
