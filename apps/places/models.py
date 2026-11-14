@@ -30,6 +30,10 @@ class MunicipalityQuerySet(models.QuerySet):
             return self.filter(models.Q(validation=Municipality.APPROVED) | models.Q(created_by=user))
         return self.all()
 
+    def as_options(self) -> list[list]:
+        rows = self.order_by("name").values_list("pk", "name", "department_id", "department__code")
+        return [list(row) for row in rows]
+
 
 class Municipality(models.Model):
     OFFICIAL = "official"

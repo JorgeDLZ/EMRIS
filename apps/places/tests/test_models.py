@@ -30,3 +30,16 @@ def test_approved_queryset_excludes_pending(db):
     Municipality.objects.create(department=department, name="A", validation=Municipality.APPROVED)
     Municipality.objects.create(department=department, name="B", validation=Municipality.PENDING)
     assert list(Municipality.objects.approved().values_list("name", flat=True)) == ["A"]
+
+
+def test_as_options_shape(db):
+    department = make_department()
+    medellin = Municipality.objects.create(department=department, code="05001", name="MEDELLÍN")
+    assert Municipality.objects.all().as_options() == [[medellin.pk, "MEDELLÍN", department.pk, "05"]]
+
+
+def test_as_options_ordered_by_name(db):
+    department = make_department()
+    Municipality.objects.create(department=department, name="ZARAGOZA")
+    Municipality.objects.create(department=department, name="ABEJORRAL")
+    assert [row[1] for row in Municipality.objects.all().as_options()] == ["ABEJORRAL", "ZARAGOZA"]

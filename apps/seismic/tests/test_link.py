@@ -179,6 +179,7 @@ def test_manual_magnitude_saves_without_event(client, db, bogota, earthquake):
         reverse("emergencies:emergency_edit", args=[emergency.pk]),
         {
             "emergency_type": earthquake.pk,
+            "department": bogota.department_id,
             "municipality": bogota.pk,
             "site": "",
             "occurred_at": timezone.localtime(emergency.occurred_at).strftime("%Y-%m-%dT%H:%M"),
@@ -232,6 +233,7 @@ def edit_payload(emergency, **extra):
         "description": "",
     }
     data.update(extra)
+    data.setdefault("department", Municipality.objects.get(pk=data["municipality"]).department_id)
     return data
 
 

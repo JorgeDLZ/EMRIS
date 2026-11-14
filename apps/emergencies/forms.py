@@ -2,11 +2,12 @@ from django import forms
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.places.models import Municipality
+from apps.places.models import Department, Municipality
 
 from .models import EARTHQUAKE, Emergency, EmergencyType, Impact
 
 DATETIME_LOCAL_FORMAT = "%Y-%m-%dT%H:%M"
+WRONG_DEPARTMENT = "Choose a municipality in the selected department."
 
 
 class EmergencyTypeForm(forms.ModelForm):
@@ -31,6 +32,9 @@ class EmergencyForm(forms.ModelForm):
         required=False, min_value=0, max_value=10, label="Magnitude"
     )
     reported_depth_km = forms.FloatField(required=False, min_value=0, label="Depth (km)")
+    department = forms.ModelChoiceField(queryset=Department.objects.order_by("name"))
+
+    field_order = ["emergency_type", "department", "municipality"]
 
     class Meta:
         model = Emergency
@@ -55,6 +59,11 @@ class EmergencyForm(forms.ModelForm):
             )
         self.fields["emergency_type"].queryset = EmergencyType.objects.filter(types)
         self.fields["municipality"].queryset = municipalities.select_related("department")
+        self.fields["municipality"].widget.attrs.update(
+            {"data-combobox": "municipality", "data-department-field": "id_department"}
+        )
+        if self.instance.pk:
+            self.initial.setdefault("department", self.instance.municipality.department_id)
 
     def clean_occurred_at(self):
         occurred_at = self.cleaned_data["occurred_at"]
@@ -71,6 +80,10 @@ class EmergencyForm(forms.ModelForm):
         )
         if emergency_type is not None and has_quake_fields and emergency_type.seed_key != EARTHQUAKE:
             raise forms.ValidationError("Magnitude and depth apply only to earthquakes.")
+        department = cleaned.get("department")
+        municipality = cleaned.get("municipality")
+        if department and municipality and municipality.department_id != department.pk:
+            self.add_error("municipality", WRONG_DEPARTMENT)
         return cleaned
 
 

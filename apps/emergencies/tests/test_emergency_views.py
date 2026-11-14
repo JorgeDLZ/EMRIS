@@ -74,6 +74,7 @@ def make_emergency(medellin, flood):
 def form_data(medellin, flood, **extra):
     data = {
         "emergency_type": flood.pk,
+        "department": medellin.department_id,
         "municipality": medellin.pk,
         "site": "Riverside",
         "occurred_at": timezone.localtime(timezone.now() - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M"),

@@ -160,15 +160,29 @@ def emergency_list(request):
     )
 
 
+def _render_emergency_form(request, form, emergency):
+    return render(
+        request,
+        "emergencies/emergency_form.html",
+        {
+            "form": form,
+            "emergency": emergency,
+            "municipality_options": form.fields["municipality"].queryset.as_options(),
+        },
+    )
+
+
 @role_required(*CAPABILITIES["edit_emergencies"])
 def emergency_create(request):
     form = EmergencyForm(request.POST or None, user=request.user)
     if request.method == "POST" and form.is_valid():
-        emergency = create_emergency(request.user, **form.cleaned_data)
+        emergency = create_emergency(
+            request.user, **{name: form.cleaned_data[name] for name in EmergencyForm.Meta.fields}
+        )
         predict_on_save(emergency)
         messages.success(request, "The emergency was reported.")
         return redirect("emergencies:emergency_detail", pk=emergency.pk)
-    return render(request, "emergencies/emergency_form.html", {"form": form, "emergency": None})
+    return _render_emergency_form(request, form, None)
 
 
 @role_required(*CAPABILITIES["view_emergencies"])
@@ -249,7 +263,7 @@ def emergency_edit(request, pk):
         )
         messages.success(request, "The emergency was updated.")
         return redirect("emergencies:emergency_detail", pk=emergency.pk)
-    return render(request, "emergencies/emergency_form.html", {"form": form, "emergency": emergency})
+    return _render_emergency_form(request, form, emergency)
 
 
 @role_required(*CAPABILITIES["edit_emergencies"])
