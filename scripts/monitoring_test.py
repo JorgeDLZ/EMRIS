@@ -3,16 +3,17 @@
 Every report scored here is invented for the test: it is labelled "SIMULATED"
 in the log, in the CSV and in the summary, and none of it touches the database.
 
-Two batches stand in for January 2026:
-- normal: reports drawn from the January 2025 history;
-- drift: the same, with floods and landslides four times as likely, as in an
-  unusually rainy month.
+Two batches stand in for the first 90 days of 2026, both drawn from the 2025
+history the model is trained on:
+- normal: rows sampled at random;
+- drift: half of the rows forced to the second most frequent event type.
 
 Each prediction is written to a JSON-lines log, and the batch indicators
-(volume, share flagged, PSI of event type and department, unseen
-municipalities) are compared with January 2025 to raise alerts.
+(event-type and department PSI, score PSI, share flagged as high impact,
+unseen municipalities, F1 on the simulated labels) are compared with the
+training data to give a status: stable, watch, retrain or not enough data.
 
-    python scripts/monitoring_test.py --rows 200 --out monitoring_output
+    python scripts/monitoring_test.py --rows 300 --out monitoring_output
 """
 
 import argparse
@@ -30,26 +31,17 @@ sys.path.insert(0, str(ROOT))
 
 from ml.data import load_frame  # noqa: E402
 from ml.impact import train_impact  # noqa: E402
-from ml.monitoring import monitoring_indicators  # noqa: E402
+from ml.monitoring import (  # noqa: E402
+    assess,
+    compute_indicators,
+    reference_profile,
+    simulate_operational_frame,
+)
 
 LABEL = "SIMULATED"
-REPORT_FIELDS = ["event_type", "department", "municipality"]
-RAINY_TYPES = {"Flood", "Flash flood", "Landslide"}
-DRIFT_WEIGHT = 4.0
-SIMULATED_MONTH = (2026, 1)
+SIMULATED_START = date(2026, 1, 1)
 
 logger = logging.getLogger("emris.monitoring")
-
-
-def simulate_reports(reference, rows, rng, drift):
-    weights = np.where(reference["event_type"].isin(RAINY_TYPES), DRIFT_WEIGHT, 1.0) if drift else None
-    picked = reference.sample(n=rows, replace=True, weights=weights, random_state=rng)
-    year, month = SIMULATED_MONTH
-    days = rng.integers(1, 32, size=rows)
-    reports = picked[REPORT_FIELDS].reset_index(drop=True)
-    reports.insert(0, "occurred_on", [date(year, month, int(day)) for day in days])
-    reports.insert(0, "reference", [f"{LABEL}-{'DRIFT' if drift else 'NORMAL'}-{i + 1:04d}" for i in range(rows)])
-    return reports
 
 
 def score_batch(model, version, reports, batch, log_path):
@@ -84,7 +76,7 @@ def score_batch(model, version, reports, batch, log_path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--rows", type=int, default=200)
+    parser.add_argument("--rows", type=int, default=300)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--out", type=Path, default=ROOT / "monitoring_output")
     args = parser.parse_args()
@@ -104,33 +96,45 @@ def main():
     version = f"impact/{result.metrics['model']}/threshold={model.threshold:.3f}"
     logger.info("Model trained on %s to %s: %s", result.trained_on["start"], result.trained_on["end"], version)
 
-    january = frame[pd.to_datetime(frame["occurred_on"]).dt.month == 1]
-    reference_flagged = float(np.mean(model.predict(january)))
-    rng = np.random.default_rng(args.seed)
-
-    summary = {"data": LABEL, "reference": "January 2025 (real history)", "model": version, "batches": {}}
+    reference = {
+        **reference_profile(frame, model.probability(frame), model.threshold),
+        "reference_f1": round(result.metrics["f1"], 4),
+    }
+    shifted_type = frame["event_type"].value_counts().index[1]
+    summary = {
+        "data": LABEL,
+        "reference": f"2025 history (real), {len(frame)} records",
+        "model": version,
+        "drift_type": shifted_type,
+        "batches": {},
+    }
     scored = []
-    for batch, drift in (("normal", False), ("drift", True)):
-        reports = simulate_reports(january, args.rows, rng, drift)
-        rows, flagged = score_batch(model, version, reports, batch, log_path)
+    for offset, (batch, shift) in enumerate((("normal", None), ("drift", shifted_type))):
+        reports = simulate_operational_frame(
+            frame, SIMULATED_START, rows=args.rows, shifted_type=shift, seed=args.seed + offset
+        )
+        rows, _ = score_batch(model, version, reports, batch, log_path)
         scored.append(rows)
-        indicators = monitoring_indicators(january, reports, flagged, reference_flagged)
+        indicators = compute_indicators(
+            reference, reports, model.probability(reports), model.threshold, np.ones(len(reports), dtype=bool)
+        )
+        indicators["status"] = assess(indicators)
         summary["batches"][batch] = indicators
         for alert in indicators["alerts"]:
             logger.warning("%s batch '%s' ALERT: %s", LABEL, batch, alert)
-        if not indicators["alerts"]:
-            logger.info("%s batch '%s': no alerts", LABEL, batch)
+        logger.info("%s batch '%s': status %s", LABEL, batch, indicators["status"])
 
     pd.concat(scored).to_csv(args.out / "predictions_simulated.csv", index=False)
     (args.out / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
 
     print(f"\n{LABEL} OPERATIONAL DATA - monitoring test summary")
-    print(f"Reference: January 2025, {len(january)} real reports, {reference_flagged:.1%} flagged")
+    print(f"Reference: {summary['reference']}, {reference['flagged_share']:.1%} flagged; drift batch shifted to {shifted_type}")
     for batch, indicators in summary["batches"].items():
         print(
-            f"  {batch:<7} predictions={indicators['predictions']}  flagged={indicators['flagged_share']:.1%}  "
-            f"PSI type={indicators['psi_event_type']:.3f}  PSI department={indicators['psi_department']:.3f}  "
-            f"unseen municipalities={indicators['unseen_municipalities']:.1%}  alerts={len(indicators['alerts'])}"
+            f"  {batch:<7} emergencies={indicators['emergencies']}  flagged={indicators['flagged_share']:.1%}  "
+            f"PSI type={indicators['type_psi']:.3f}  PSI department={indicators['department_psi']:.3f}  "
+            f"PSI score={indicators['score_psi']:.3f}  unseen municipalities={indicators['unseen_share']:.1%}  "
+            f"F1={indicators['f1']}  status={indicators['status']}"
         )
         for alert in indicators["alerts"]:
             print(f"           ! {alert}")
