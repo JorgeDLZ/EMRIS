@@ -75,7 +75,7 @@ textarea:focus-visible {
 
 .content { max-width: 1200px; margin: 24px auto; padding: 0 24px; }
 
-.app-shell > .menu-toggle { display: none; }
+.btn.menu-toggle { display: none; }
 
 .sidebar {
   position: sticky;
@@ -378,7 +378,7 @@ textarea {
 @media (max-width: 800px) {
   .app-shell { display: block; }
   .sidebar { position: static; height: auto; overflow: visible; }
-  .js .app-shell > .menu-toggle { display: block; margin: 12px 16px 0; }
+  .js .menu-toggle { display: block; margin: 12px 16px 0; }
   .js .sidebar:not(.is-open) { display: none; }
 }
 

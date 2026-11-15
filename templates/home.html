@@ -154,7 +154,7 @@
     </ul>
     <div class="card landing-in-emris">
       <h4>In EMRIS</h4>
-      <p>The impact estimator compares logistic regression and gradient boosting, and its decision threshold is tuned on September. Emergency profiles use K-means on log-scaled impact variables. Similar emergencies use k-nearest neighbors (k = 5) on type, place, month and impact. Municipal risk uses hierarchical agglomerative clustering (Ward) of municipalities with at least 3 emergencies. Five notebooks document the exploration and the four models.</p>
+      <p>The impact estimator compares logistic regression and gradient boosting against a type-and-location baseline. The candidate is chosen on September (validation PR-AUC 0.46 for logistic regression against 0.41 for gradient boosting), and its decision threshold is tuned on the same month, so the October–December test months are never used for selection or tuning. The regularisation strength C was tuned with an expanding-window cross-validation (0.1, 0.3, 1 and 3 gave mean PR-AUC 0.43–0.44, so the default C = 1 was kept). Emergency profiles use K-means on log-scaled impact variables. Similar emergencies use k-nearest neighbors (k = 5) on type, place, month and impact. Municipal risk uses hierarchical agglomerative clustering (Ward) of municipalities with at least 3 emergencies. Six notebooks document the exploration, the four models and the cross-validation.</p>
     </div>
   </section>
 
@@ -167,7 +167,7 @@
     </ul>
     <div class="card landing-in-emris">
       <h4>In EMRIS</h4>
-      <p>The impact estimator and similar emergencies are evaluated with a time-based split: train on January–September, test on October–December. Emergency profiles and municipal risk are fitted and scored on the whole year. The selected logistic regression reaches F1 0.51 against 0.48 for the baseline of the same type and municipality. Profiles are stable across seeds (ARI 0.98) and municipal risk has a stability ARI of 0.73. Similar emergencies reach precision at 5 of 0.94 with impact data against 0.75 for random neighbors of the same type.</p>
+      <p>The impact estimator and similar emergencies are evaluated with a time-based split: train on January–September, test on October–December. Emergency profiles and municipal risk are fitted and scored on the whole year. An expanding-window cross-validation over five folds (each validation month from May to September trained on all earlier months) gives a mean PR-AUC of 0.44 for logistic regression, 0.42 for gradient boosting and 0.34 for the baseline. On its training months the logistic regression reaches F1 0.54 against 0.51 on the test months, so it does not overfit. The selected logistic regression reaches F1 0.51 against 0.48 for the baseline of the same type and municipality. Profiles are stable across seeds (ARI 0.98) and municipal risk has a stability ARI of 0.73. Similar emergencies reach precision at 5 of 0.94 with impact data against 0.75 for random neighbors of the same type.</p>
     </div>
   </section>
 
@@ -266,7 +266,7 @@
   <section id="references" class="landing-section">
     <h2>References</h2>
     <ul class="landing-references">
-      <li>Schmid, S., Wurst, S. and Wirth, R. (2020). “Towards CRISP-ML(Q): A Machine Learning Process Model with Quality Assurance Methodology”.</li>
+      <li>Studer, S., Bui, T. B., Drescher, C., Hanuschkin, A., Winkler, L., Peters, S. and Müller, K.-R. (2021). “Towards CRISP-ML(Q): A Machine Learning Process Model with Quality Assurance Methodology”. Machine Learning and Knowledge Extraction, 3(2), 392–413.</li>
       <li>ML-Ops.org. “CRISP-ML(Q): The ML Lifecycle Process”.</li>
       <li>KDnuggets (2025). “The Machine Learning Lifecycle”.</li>
       <li>Congreso de la República de Colombia (2012). “Ley 1523 de 2012”.</li>

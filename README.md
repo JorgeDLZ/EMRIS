@@ -77,14 +77,14 @@ The project follows CRISP-ML, an evolution of CRISP-DM for machine learning proj
 
 1. **Business and data understanding.** The objective is to support prioritisation and response in risk councils with the four components above. The data are the 2025 UNGRD emergency history, the DANE DIVIPOLA municipality codes and the SGC seismicity catalog of magnitude 2.5 and above.
 2. **Data engineering.** The UNGRD file is kept as downloaded; the load commands clean it, link each record to its DIVIPOLA municipality and extract the response actions from the comments. The SGC catalog is filtered with rows unchanged and linked to municipalities. Both loads can be run again without duplicating data.
-3. **Model engineering.** The impact estimator compares logistic regression and gradient boosting, with its threshold tuned on September. Profiles use K-means, similar emergencies use k-nearest neighbors (k = 5) and municipal risk uses hierarchical agglomerative clustering (Ward). Five notebooks document the exploration and the four models.
+3. **Model engineering.** The impact estimator compares logistic regression and gradient boosting; the candidate is chosen and its threshold tuned on September, so the test months are never used for selection, and C is tuned with an expanding-window cross-validation. Profiles use K-means, similar emergencies use k-nearest neighbors (k = 5) and municipal risk uses hierarchical agglomerative clustering (Ward). Six notebooks document the exploration, the four models and the cross-validation.
 4. **Model evaluation.** Every model is compared with a simple baseline: the selected logistic regression reaches F1 0.51 against 0.48 for the baseline, profiles are stable across seeds (ARI 0.98) and similar emergencies reach precision at 5 of 0.94 against 0.75 for random neighbors of the same type.
 5. **Deployment.** The application runs on Render with a Supabase PostgreSQL database. The four components are trained from the database, stored as versioned models and shown inside the emergency workflow, and Excel reports export the results.
 6. **Monitoring and maintenance.** Administrators retrain the models from the interface, and a new version is activated only if it passes the quality gate. A run still running after 30 minutes is marked failed, and every version is kept so any previous one can be reactivated.
 
 References:
 
-- Schmid, S., Wurst, S. and Wirth, R. (2020). "Towards CRISP-ML(Q): A Machine Learning Process Model with Quality Assurance Methodology".
+- Studer, S., Bui, T. B., Drescher, C., Hanuschkin, A., Winkler, L., Peters, S. and Müller, K.-R. (2021). "Towards CRISP-ML(Q): A Machine Learning Process Model with Quality Assurance Methodology". *Machine Learning and Knowledge Extraction*, 3(2), 392–413. https://doi.org/10.3390/make3020020
 - ML-Ops.org. "CRISP-ML(Q): The ML Lifecycle Process".
 - KDnuggets (2025). "The Machine Learning Lifecycle".
 
@@ -105,13 +105,14 @@ References:
 
 ## Notebooks
 
-Five notebooks document the exploration and the models:
+Six notebooks document the exploration, the models and their validation:
 
 1. `01_exploration.ipynb`
 2. `02_impact_estimator.ipynb`
 3. `03_emergency_profiles.ipynb`
 4. `04_similar_emergencies.ipynb`
 5. `05_municipal_risk.ipynb`
+6. `06_cross_validation.ipynb`: expanding-window cross-validation and tuning of C, overfitting check, recall by event type and a sensitivity check of the high-impact thresholds
 
 ```bash
 pip install -r requirements-notebooks.txt
@@ -119,6 +120,16 @@ jupyter notebook notebooks/
 ```
 
 Notebook outputs are cleared before committing. The notebook tools are not needed to run the application or the tests.
+
+## Monitoring test (simulated data)
+
+`scripts/monitoring_test.py` demonstrates the monitoring of the impact estimator on **simulated** reports, labelled `SIMULATED` everywhere. It trains the model from `data/`, scores two invented batches for January 2026 (one drawn from January 2025, one with floods and landslides four times as likely), logs every prediction to JSON lines and computes the indicators against January 2025: volume, share flagged as high impact, population stability index (PSI) of event type and department, and unseen municipalities. An alert is raised when a PSI exceeds 0.2, unseen municipalities exceed 10% or the flagged share moves more than 10 points. It does not touch the database.
+
+```bash
+python scripts/monitoring_test.py --rows 200 --out monitoring_output
+```
+
+Outputs: `monitoring.log`, `predictions.jsonl`, `predictions_simulated.csv` and `summary.json` in the output folder.
 
 ## Stack
 

@@ -32,7 +32,8 @@ DIVIPOLA = ROOT / "data" / "divipola_dane.csv"
 METRIC_KEYS = {
     "model", "threshold", "f1", "precision", "recall", "pr_auc", "baseline_f1",
     "baseline_recall", "baseline_pr_auc", "logistic_regression_f1",
-    "gradient_boosting_f1", "test_rows", "test_positives",
+    "gradient_boosting_f1", "logistic_regression_validation_pr_auc",
+    "gradient_boosting_validation_pr_auc", "test_rows", "test_positives",
 }
 
 
@@ -82,6 +83,16 @@ def test_baseline_skips_department_level_rows():
 def test_choose_kind():
     assert choose_kind({LOGISTIC_REGRESSION: 0.50, GRADIENT_BOOSTING: 0.515}) == LOGISTIC_REGRESSION
     assert choose_kind({LOGISTIC_REGRESSION: 0.50, GRADIENT_BOOSTING: 0.53}) == GRADIENT_BOOSTING
+
+
+def test_model_is_chosen_on_validation_not_test(synthetic_frame):
+    metrics = train_impact(synthetic_frame).metrics
+    assert metrics["model"] == choose_kind(
+        {
+            LOGISTIC_REGRESSION: metrics["logistic_regression_validation_pr_auc"],
+            GRADIENT_BOOSTING: metrics["gradient_boosting_validation_pr_auc"],
+        }
+    )
 
 
 def test_train_returns_result(synthetic_frame):
