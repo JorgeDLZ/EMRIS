@@ -14,6 +14,7 @@ __pycache__/
 venv/
 .ipynb_checkpoints/
 staticfiles/
+monitoring_output/
 *.log
 .DS_Store
 .vscode/

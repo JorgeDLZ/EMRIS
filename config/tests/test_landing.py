@@ -145,3 +145,8 @@ def test_landing_does_not_load_ml_libraries():
         text=True,
     )
     assert result.returncode == 0, result.stderr
+
+
+def test_landing_reports_the_tuning_of_c(client, db):
+    html = landing(client)
+    assert "0.1, 0.3, 1 and 3 gave mean PR-AUC 0.42–0.44" in html
