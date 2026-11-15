@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 from ml.data import load_frame
-from ml.evaluation import split_dates
+from ml.evaluation import CV_FOLDS, rolling_origin_folds, split_dates
 from ml.features import IMPACT_VARIABLES
 from ml.impact import (
     FACTOR_LABELS,
@@ -19,6 +19,7 @@ from ml.impact import (
     ImpactModel,
     TypeLocationBaseline,
     choose_kind,
+    cross_validate_impact,
     evaluate_impact,
     fit_pipeline,
     train_impact,
@@ -33,7 +34,8 @@ METRIC_KEYS = {
     "model", "threshold", "f1", "precision", "recall", "pr_auc", "baseline_f1",
     "baseline_recall", "baseline_pr_auc", "logistic_regression_f1",
     "gradient_boosting_f1", "logistic_regression_validation_pr_auc",
-    "gradient_boosting_validation_pr_auc", "test_rows", "test_positives",
+    "gradient_boosting_validation_pr_auc", "cv_pr_auc_mean", "cv_pr_auc_std", "cv_folds",
+    "test_rows", "test_positives",
 }
 
 
@@ -111,6 +113,7 @@ def test_empty_validation_month_uses_default_threshold():
     frame = frame[frame["occurred_on"].map(lambda d: d.month != 9)]
     result = train_impact(frame)
     assert result.metrics["threshold"] == 0.5
+    assert cross_validate_impact(frame, LOGISTIC_REGRESSION)["fold_pr_auc"][-1] == 0.0
 
 
 def test_prediction_ignores_impact_data(synthetic_frame):
@@ -195,3 +198,31 @@ def test_real_data_impact():
     assert (m["test_rows"], m["test_positives"]) == (993, 193)
     assert round(m["f1"], 2) == 0.51 and round(m["baseline_f1"], 2) == 0.48
     assert m["pr_auc"] > m["baseline_pr_auc"]
+
+
+def test_fit_pipeline_uses_given_params(synthetic_frame):
+    pipeline = fit_pipeline(LOGISTIC_REGRESSION, synthetic_frame, {"C": 0.1})
+    assert pipeline["model"].C == 0.1
+    assert fit_pipeline(LOGISTIC_REGRESSION, synthetic_frame)["model"].C == 1.0
+
+
+def test_cross_validate_impact_reports_each_fold(synthetic_frame):
+    result = cross_validate_impact(synthetic_frame, LOGISTIC_REGRESSION)
+    assert len(result["fold_pr_auc"]) == CV_FOLDS
+    assert result["pr_auc_mean"] == pytest.approx(np.mean(result["fold_pr_auc"]))
+    assert 0.0 <= result["pr_auc_std"] <= 1.0
+
+
+def test_cross_validation_matches_notebook_folds(synthetic_frame):
+    folds = rolling_origin_folds(
+        synthetic_frame["occurred_on"], split_dates(synthetic_frame["occurred_on"]).test_start
+    )
+    result = cross_validate_impact(synthetic_frame, LOGISTIC_REGRESSION)
+    assert len(result["fold_pr_auc"]) == len(folds) == 5
+
+
+def test_train_impact_reports_cross_validation(synthetic_frame):
+    metrics = train_impact(synthetic_frame).metrics
+    assert metrics["cv_folds"] == CV_FOLDS
+    assert 0.0 <= metrics["cv_pr_auc_mean"] <= 1.0
+    assert metrics["cv_pr_auc_std"] >= 0.0

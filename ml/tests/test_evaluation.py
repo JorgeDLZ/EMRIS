@@ -3,15 +3,18 @@ from datetime import date
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 
 from ml.data import load_frame
 from ml.evaluation import (
+    CV_FOLDS,
     SplitDates,
     TrainResult,
     best_f1_threshold,
     classification_metrics,
     describe_frame,
+    rolling_origin_folds,
     safe_silhouette,
     split_dates,
     temporal_masks,
@@ -79,3 +82,21 @@ def test_train_result_score_and_describe(synthetic_frame):
     described = describe_frame(synthetic_frame)
     assert described["rows"] == 600 and described["start"] == "2025-01-01"
     assert described["end"].startswith("2025-12")
+
+
+def test_rolling_origin_folds_expand_month_by_month(synthetic_frame):
+    split = split_dates(synthetic_frame["occurred_on"])
+    folds = rolling_origin_folds(synthetic_frame["occurred_on"], split.test_start)
+    dates = pd.to_datetime(synthetic_frame["occurred_on"])
+    assert len(folds) == CV_FOLDS
+    months = [dates[f["validation"]].dt.month.unique().tolist() for f in folds]
+    assert months == [[5], [6], [7], [8], [9]]
+    for fold in folds:
+        assert dates[fold["fit"]].max() < dates[fold["validation"]].min()
+        assert not (fold["validation"] & (dates >= pd.Timestamp(split.test_start))).any()
+    assert all(a["fit"].sum() < b["fit"].sum() for a, b in zip(folds, folds[1:]))
+
+
+def test_rolling_origin_folds_need_enough_months(synthetic_frame):
+    with pytest.raises(ValueError, match="need at least 6 months before the test period"):
+        rolling_origin_folds(synthetic_frame["occurred_on"], date(2025, 3, 1))

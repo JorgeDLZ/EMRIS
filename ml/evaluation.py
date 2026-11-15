@@ -13,6 +13,7 @@ from sklearn.metrics import (
 )
 
 TEST_MONTHS = 3
+CV_FOLDS = 5
 DEFAULT_THRESHOLD = 0.5
 
 
@@ -47,6 +48,20 @@ def temporal_masks(frame, split):
         "test": dates >= test_start,
     }
 
+
+
+def rolling_origin_folds(occurred_on, test_start, folds=CV_FOLDS):
+    dates = pd.to_datetime(occurred_on)
+    months = dates.dt.to_period("M")
+    test_month = pd.Timestamp(test_start).to_period("M")
+    before = months[dates < pd.Timestamp(test_start)]
+    span = (test_month - before.min()).n if len(before) else 0
+    if span < folds + 1:
+        raise ValueError(f"need at least {folds + 1} months before the test period")
+    return [
+        {"fit": months < test_month - offset, "validation": months == test_month - offset}
+        for offset in range(folds, 0, -1)
+    ]
 
 def best_f1_threshold(y_true, scores):
     if not np.any(y_true):

@@ -9,11 +9,13 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
 from ml.evaluation import (
+    CV_FOLDS,
     DEFAULT_THRESHOLD,
     TrainResult,
     best_f1_threshold,
     classification_metrics,
     describe_frame,
+    rolling_origin_folds,
     split_dates,
     temporal_masks,
 )
@@ -39,6 +41,10 @@ FACTOR_LABELS = {
     "month": "Month",
 }
 REQUIRED_COLUMNS = (*REPORT_COLUMNS, "is_high_impact")
+DEFAULT_PARAMS = {
+    LOGISTIC_REGRESSION: {"C": 1.0},
+    GRADIENT_BOOSTING: {"learning_rate": 0.1, "max_depth": None},
+}
 
 
 @dataclass(frozen=True)
@@ -85,11 +91,12 @@ class TypeLocationBaseline:
         return self.type_rate_.get(event_type, self.global_rate_)
 
 
-def fit_pipeline(kind, frame):
+def fit_pipeline(kind, frame, params=None):
+    params = DEFAULT_PARAMS[kind] if params is None else params
     if kind == GRADIENT_BOOSTING:
-        model = HistGradientBoostingClassifier(class_weight="balanced", random_state=0)
+        model = HistGradientBoostingClassifier(class_weight="balanced", random_state=0, **params)
     else:
-        model = LogisticRegression(class_weight="balanced", max_iter=2000)
+        model = LogisticRegression(class_weight="balanced", max_iter=2000, **params)
     pipeline = Pipeline(
         [
             ("features", impact_preprocessor(dense=kind == GRADIENT_BOOSTING)),
@@ -98,6 +105,26 @@ def fit_pipeline(kind, frame):
     )
     return pipeline.fit(report_time_features(frame), frame["is_high_impact"])
 
+
+
+def cross_validate_impact(frame, kind, params=None):
+    labels = frame["is_high_impact"].to_numpy(dtype=bool)
+    folds = rolling_origin_folds(frame["occurred_on"], split_dates(frame["occurred_on"]).test_start)
+    fold_pr_auc = []
+    for fold in folds:
+        fold_labels = labels[fold["validation"].to_numpy()]
+        if not fold_labels.any():
+            fold_pr_auc.append(0.0)
+            continue
+        pipeline = fit_pipeline(kind, frame[fold["fit"]], params)
+        validation = frame[fold["validation"]]
+        scores = pipeline.predict_proba(report_time_features(validation))[:, 1]
+        fold_pr_auc.append(classification_metrics(fold_labels, scores, DEFAULT_THRESHOLD)["pr_auc"])
+    return {
+        "pr_auc_mean": float(np.mean(fold_pr_auc)),
+        "pr_auc_std": float(np.std(fold_pr_auc)),
+        "fold_pr_auc": fold_pr_auc,
+    }
 
 def choose_kind(score_by_kind):
     margin = score_by_kind[GRADIENT_BOOSTING] - score_by_kind[LOGISTIC_REGRESSION]
@@ -230,6 +257,7 @@ def train_impact(frame):
     if kind == GRADIENT_BOOSTING:
         importance = _group_importance(test, train_fits[GRADIENT_BOOSTING], test_labels)
     model = ImpactModel(kind, fit_pipeline(kind, frame), thresholds[kind], importance)
+    cross_validation = cross_validate_impact(frame, kind)
     chosen, baseline = test_metrics[kind], test_metrics[BASELINE]
     metrics = {
         "model": kind,
@@ -245,6 +273,9 @@ def train_impact(frame):
         "gradient_boosting_f1": test_metrics[GRADIENT_BOOSTING]["f1"],
         "logistic_regression_validation_pr_auc": validation_pr_auc[LOGISTIC_REGRESSION],
         "gradient_boosting_validation_pr_auc": validation_pr_auc[GRADIENT_BOOSTING],
+        "cv_pr_auc_mean": round(cross_validation["pr_auc_mean"], 4),
+        "cv_pr_auc_std": round(cross_validation["pr_auc_std"], 4),
+        "cv_folds": CV_FOLDS,
         "test_rows": int(masks["test"].sum()),
         "test_positives": int(test_labels.sum()),
     }
