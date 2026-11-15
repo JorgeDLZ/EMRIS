@@ -36,6 +36,7 @@ class ResourceForm(forms.ModelForm):
     class Meta:
         model = Resource
         fields = ["name", "kind", "quantity_available"]
+        help_texts = {"quantity_available": "Units ready to assign."}
 
     def clean_name(self):
         name = self.cleaned_data["name"].strip()

@@ -1,9 +1,22 @@
-{% if form.non_field_errors %}
-  <div class="form-errors" role="alert">
-    {% for error in form.non_field_errors %}<p class="field-error">{{ error }}</p>{% endfor %}
-  </div>
+{% include "_form_error_summary.html" %}
+{% for field in form.visible_fields %}{% if field.field.required %}{% ifchanged %}<p class="form-note">Fields marked * are required.</p>{% endifchanged %}{% endif %}{% endfor %}
+{% if form.fieldsets %}
+  {% for section in form.sections %}
+    <fieldset class="form-section"{% if section.show_when %} data-show-when="{{ section.show_when }}"{% endif %}>
+      <legend>{{ section.legend }}</legend>
+      <div class="form-grid">
+        {% for field in section.fields %}
+          {% include "_form_field.html" %}
+        {% endfor %}
+      </div>
+    </fieldset>
+  {% endfor %}
+  {% for field in form.unsectioned_fields %}
+    {% include "_form_field.html" %}
+  {% endfor %}
+{% else %}
+  {% for field in form.visible_fields %}
+    {% include "_form_field.html" %}
+  {% endfor %}
 {% endif %}
-{% for field in form.visible_fields %}
-  {% include "_form_field.html" %}
-{% endfor %}
 {% for field in form.hidden_fields %}{{ field }}{% endfor %}

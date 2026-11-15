@@ -197,4 +197,18 @@
       enhance(field, options, index);
     });
   });
+
+  document.addEventListener("DOMContentLoaded", function () {
+    var summary = document.querySelector(".error-summary");
+    if (!summary) {
+      return;
+    }
+    Array.prototype.forEach.call(summary.querySelectorAll('a[href^="#"]'), function (link) {
+      var search = document.getElementById(link.getAttribute("href").slice(1) + "_search");
+      if (search) {
+        link.setAttribute("href", "#" + search.id);
+      }
+    });
+    summary.focus();
+  });
 })();

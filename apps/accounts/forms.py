@@ -17,6 +17,7 @@ class RegistrationForm(UserCreationForm):
         model = User
         fields = ("username", "organization")
         widgets = {"organization": forms.TextInput(attrs={"class": "input-caps"})}
+        help_texts = {"organization": "Your agency or team, if any."}
 
     def clean_username(self):
         username = self.cleaned_data["username"]

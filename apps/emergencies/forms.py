@@ -8,7 +8,25 @@ from .models import EARTHQUAKE, Emergency, EmergencyType, Impact
 
 DATETIME_LOCAL_FORMAT = "%Y-%m-%dT%H:%M"
 WRONG_DEPARTMENT = "Choose a municipality in the selected department."
-EARTHQUAKE_FIELDS = ("reported_magnitude", "reported_depth_km")
+
+
+class FieldsetsMixin:
+    fieldsets: list[tuple[str, list[str]]] = []
+    conditional_sections: dict[str, str] = {}
+
+    def sections(self):
+        return [
+            {
+                "legend": legend,
+                "fields": [self[name] for name in names],
+                "show_when": self.conditional_sections.get(legend, ""),
+            }
+            for legend, names in self.fieldsets
+        ]
+
+    def unsectioned_fields(self):
+        listed = {name for _, names in self.fieldsets for name in names}
+        return [field for field in self.visible_fields() if field.name not in listed]
 
 
 class EarthquakeAwareSelect(forms.Select):
@@ -33,10 +51,11 @@ class EmergencyTypeForm(forms.ModelForm):
         return name
 
 
-class EmergencyForm(forms.ModelForm):
+class EmergencyForm(FieldsetsMixin, forms.ModelForm):
     occurred_at = forms.DateTimeField(
         widget=forms.DateTimeInput(attrs={"type": "datetime-local"}, format=DATETIME_LOCAL_FORMAT),
         input_formats=[DATETIME_LOCAL_FORMAT],
+        help_text="Local date and time; it cannot be in the future.",
     )
     reported_magnitude = forms.FloatField(
         required=False, min_value=0, max_value=10, label="Magnitude"
@@ -45,6 +64,13 @@ class EmergencyForm(forms.ModelForm):
     department = forms.ModelChoiceField(queryset=Department.objects.order_by("name"))
 
     field_order = ["emergency_type", "department", "municipality"]
+    fieldsets = [
+        ("What happened", ["emergency_type", "description"]),
+        ("Where", ["department", "municipality", "site"]),
+        ("When", ["occurred_at"]),
+        ("Earthquake details", ["reported_magnitude", "reported_depth_km"]),
+    ]
+    conditional_sections = {"Earthquake details": "earthquake"}
 
     class Meta:
         model = Emergency
@@ -60,6 +86,10 @@ class EmergencyForm(forms.ModelForm):
         widgets = {
             "emergency_type": EarthquakeAwareSelect,
             "site": forms.TextInput(attrs={"class": "input-caps"}),
+        }
+        help_texts = {
+            "site": "Village, neighbourhood or landmark.",
+            "description": "What happened and what is needed now.",
         }
 
     def __init__(self, *args, user, **kwargs):
@@ -78,12 +108,6 @@ class EmergencyForm(forms.ModelForm):
         )
         if self.instance.pk:
             self.initial.setdefault("department", self.instance.municipality.department_id)
-
-    def general_fields(self):
-        return [field for field in self.visible_fields() if field.name not in EARTHQUAKE_FIELDS]
-
-    def earthquake_fields(self):
-        return [self[name] for name in EARTHQUAKE_FIELDS]
 
     def clean_occurred_at(self):
         occurred_at = self.cleaned_data["occurred_at"]
@@ -107,10 +131,16 @@ class EmergencyForm(forms.ModelForm):
         return cleaned
 
 
-class ImpactForm(forms.ModelForm):
+class ImpactForm(FieldsetsMixin, forms.ModelForm):
     hectares = forms.FloatField(
         min_value=0, initial=0, help_text="Burned, flooded or otherwise affected land; 0 if none."
     )
+    fieldsets = [
+        ("People", ["deceased", "injured", "missing", "people_affected", "families_affected"]),
+        ("Homes", ["homes_destroyed", "homes_damaged"]),
+        ("Infrastructure", ["roads_damaged", "bridges_damaged"]),
+        ("Land", ["hectares"]),
+    ]
 
     class Meta:
         model = Impact
