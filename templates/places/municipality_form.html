@@ -20,7 +20,16 @@
   {% endif %}
   <form method="post" class="card">
     {% csrf_token %}
-    {% include "_form_fields.html" %}
+    {% if form.non_field_errors %}
+      <div class="form-errors" role="alert">
+        {% for error in form.non_field_errors %}<p class="field-error">{{ error }}</p>{% endfor %}
+      </div>
+    {% endif %}
+    {% include "_form_field.html" with field=form.department %}
+    {% include "_form_field.html" with field=form.name %}
+    {% if similar %}
+      {% include "_form_field.html" with field=form.confirm_new %}
+    {% endif %}
     <div class="form-card-actions">
       <button type="submit" class="btn btn-primary">Register</button>
       <a href="{% url 'places:municipality_list' %}">Back to municipalities</a>

@@ -1,6 +1,6 @@
 from django import forms
 
-from .models import Action, Resource
+from .models import ACTION_CODE_CHOICES, Action, Resource
 from .services import assignable_owners
 
 
@@ -14,6 +14,17 @@ class ActionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["owner"].queryset = assignable_owners()
+        self.fields["description"].required = False
+
+    def clean(self):
+        cleaned = super().clean()
+        if not cleaned.get("description"):
+            code = cleaned.get("code")
+            if code:
+                cleaned["description"] = dict(ACTION_CODE_CHOICES)[code]
+            elif "description" not in self.errors:
+                self.add_error("description", "Describe the action or choose an action type.")
+        return cleaned
 
 
 class AssignmentForm(forms.Form):

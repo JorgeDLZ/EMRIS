@@ -164,7 +164,30 @@
     }
   }
 
+  function bindEarthquakeSection(section) {
+    var type = document.getElementById("id_emergency_type");
+    if (!type) {
+      return;
+    }
+    function update() {
+      var selected = type.options[type.selectedIndex];
+      var isEarthquake = Boolean(selected && selected.getAttribute("data-earthquake") === "true");
+      section.hidden = !isEarthquake;
+      if (!isEarthquake) {
+        Array.prototype.forEach.call(section.querySelectorAll("input"), function (input) {
+          input.value = "";
+        });
+      }
+    }
+    type.addEventListener("change", update);
+    update();
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
+    var section = document.querySelector('[data-show-when="earthquake"]');
+    if (section) {
+      bindEarthquakeSection(section);
+    }
     var fields = document.querySelectorAll('[data-combobox="municipality"]');
     if (!fields.length) {
       return;

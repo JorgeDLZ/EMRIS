@@ -227,7 +227,7 @@ def test_municipality_form_error_next_to_field(client, medellin):
     html = response.content.decode()
     name_input = html.index('name="name"')
     assert 0 < html.index("field-error", name_input) - name_input < 400
-    assert html.index("field-error", name_input) < html.index('name="confirm_new"')
+    assert 'name="confirm_new"' not in html
 
 
 def test_pending_municipalities_empty_state(client, db):
@@ -245,3 +245,11 @@ def test_pending_municipalities_actions_are_buttons(client, antioquia):
     assert "badge badge-warning" in html
     assert 'class="btn btn-primary"' in html
     assert 'class="btn btn-secondary"' in html
+
+
+def test_confirm_box_only_with_similar(client, medellin):
+    client.force_login(make_user("olga", OPERATOR))
+    url = reverse("places:municipality_create")
+    assert "register it anyway" not in client.get(url).content.decode()
+    response = client.post(url, {"department": medellin.department.pk, "name": "Medelin"})
+    assert "register it anyway" in response.content.decode()

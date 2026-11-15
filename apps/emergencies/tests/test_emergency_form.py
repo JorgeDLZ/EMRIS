@@ -91,3 +91,21 @@ def test_report_page_embeds_options(client, places, flood):
     assert '<script id="municipality-options" type="application/json">' in html
     assert 'data-combobox="municipality"' in html
     assert 'data-department-field="id_department"' in html
+
+
+def test_earthquake_option_is_marked(places, flood):
+    quake = EmergencyType.objects.create(name="Earthquake", seed_key="Earthquake")
+    html = str(EmergencyForm(user=make_user("olga", OPERATOR))["emergency_type"])
+    assert html.count('data-earthquake="true"') == 1
+    assert f'value="{quake.pk}" data-earthquake="true"' in html
+    assert f'value="{flood.pk}" data-earthquake' not in html
+
+
+def test_earthquake_fields_in_their_section(client, places):
+    client.force_login(make_user("olga", OPERATOR))
+    html = client.get(reverse("emergencies:emergency_create")).content.decode()
+    section = html.split('<fieldset class="form-section" data-show-when="earthquake">', 1)[1].split("</fieldset>", 1)[0]
+    assert "<legend>Earthquake details</legend>" in section
+    assert 'id="id_reported_magnitude"' in section
+    assert 'id="id_reported_depth_km"' in section
+    assert html.count('id="id_reported_magnitude"') == 1

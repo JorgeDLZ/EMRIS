@@ -8,6 +8,16 @@ from .models import EARTHQUAKE, Emergency, EmergencyType, Impact
 
 DATETIME_LOCAL_FORMAT = "%Y-%m-%dT%H:%M"
 WRONG_DEPARTMENT = "Choose a municipality in the selected department."
+EARTHQUAKE_FIELDS = ("reported_magnitude", "reported_depth_km")
+
+
+class EarthquakeAwareSelect(forms.Select):
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        instance = getattr(value, "instance", None)
+        if instance is not None and instance.seed_key == EARTHQUAKE:
+            option["attrs"]["data-earthquake"] = "true"
+        return option
 
 
 class EmergencyTypeForm(forms.ModelForm):
@@ -47,7 +57,10 @@ class EmergencyForm(forms.ModelForm):
             "reported_magnitude",
             "reported_depth_km",
         ]
-        widgets = {"site": forms.TextInput(attrs={"class": "input-caps"})}
+        widgets = {
+            "emergency_type": EarthquakeAwareSelect,
+            "site": forms.TextInput(attrs={"class": "input-caps"}),
+        }
 
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)
@@ -65,6 +78,12 @@ class EmergencyForm(forms.ModelForm):
         )
         if self.instance.pk:
             self.initial.setdefault("department", self.instance.municipality.department_id)
+
+    def general_fields(self):
+        return [field for field in self.visible_fields() if field.name not in EARTHQUAKE_FIELDS]
+
+    def earthquake_fields(self):
+        return [self[name] for name in EARTHQUAKE_FIELDS]
 
     def clean_occurred_at(self):
         occurred_at = self.cleaned_data["occurred_at"]
@@ -89,7 +108,9 @@ class EmergencyForm(forms.ModelForm):
 
 
 class ImpactForm(forms.ModelForm):
-    hectares = forms.FloatField(min_value=0)
+    hectares = forms.FloatField(
+        min_value=0, initial=0, help_text="Burned, flooded or otherwise affected land; 0 if none."
+    )
 
     class Meta:
         model = Impact
