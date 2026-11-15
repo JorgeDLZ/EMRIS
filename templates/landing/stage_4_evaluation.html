@@ -1,12 +1,91 @@
 <details id="model-evaluation" class="landing-stage-panel">
   <summary><h3 class="landing-stage">Model evaluation</h3></summary>
-  <ul>
-    <li>Validation and performance metrics: measuring how well each model does its job.</li>
-    <li>Cross-validation: checking that the results hold on data the model has not seen.</li>
-    <li>Risk analysis: identifying what could go wrong when the model is used.</li>
-  </ul>
-  <div class="card landing-in-emris">
-    <h4>In EMRIS</h4>
-    <p>The impact estimator and similar emergencies are evaluated with a time-based split: train on January–September, test on October–December. Emergency profiles and municipal risk are fitted and scored on the whole year. An expanding-window cross-validation over five folds (each validation month from May to September trained on all earlier months) gives a mean PR-AUC of 0.44 for logistic regression, 0.42 for gradient boosting and 0.34 for the baseline. On its training months the logistic regression reaches F1 0.54 against 0.51 on the test months, so it does not overfit. The selected logistic regression reaches F1 0.51 against 0.48 for the baseline of the same type and municipality. Profiles are stable across seeds (ARI 0.98) and municipal risk has a stability ARI of 0.73. Similar emergencies reach precision at 5 of 0.94 with impact data against 0.75 for random neighbors of the same type.</p>
-  </div>
+  <p class="landing-stage-lead">How each model was measured, compared with its baseline and selected, and how it performs on months it never saw.</p>
+
+  <details class="landing-item">
+    <summary>Evaluation metrics</summary>
+    <ul>
+      <li>Impact estimator: F1, precision, recall and PR-AUC (area under the precision-recall curve). Only 16% of the emergencies are high impact, so accuracy would be misleading: predicting “not high impact” for everything is right 84% of the time and useless. F1 balances missed high-impact cases against false alarms, and PR-AUC measures the ranking without fixing a threshold.</li>
+      <li>Emergency profiles and municipal risk: the silhouette score, which measures how separated the groups are, and the adjusted Rand index (ARI), which measures how much the groups change when the model is refitted.</li>
+      <li>Similar emergencies: precision at 5, the share of the 5 neighbors that have the same event type and the same impact level (high or not) as the query.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Cross-validation</summary>
+    <ul>
+      <li>Impact estimator: rolling-origin cross-validation by month. Each of the five folds validates on one month from May to September and trains on all earlier months. A shuffled K-fold would train on emergencies that happened after the ones it validates on, an advantage a council never has when a new emergency is reported.</li>
+      <li>Emergency profiles: K-means refitted with five other random seeds; the ARI against the stored grouping is 0.98.</li>
+      <li>Municipal risk: 20 resamples of 80% of the municipalities, each clustered again; the mean ARI is 0.73.</li>
+      <li>Similar emergencies: the October–December emergencies are queried against the earlier ones only.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Model comparison</summary>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col">Model</th><th scope="col">Validation PR-AUC (September)</th><th scope="col">Cross-validated PR-AUC (May–September)</th><th scope="col">Test F1 (October–December)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Logistic regression</td><td>0.462</td><td>0.438 ± 0.071</td><td>0.510</td></tr>
+          <tr><td>Gradient boosting</td><td>0.408</td><td>0.420 ± 0.084</td><td>0.504</td></tr>
+          <tr><td>Baseline: same type and municipality</td><td>0.409</td><td>0.340 ± 0.047</td><td>0.479</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Cross-validated PR-AUC (mean of the five folds):</p>
+    <ul class="bar-list">
+      <li><span>Logistic regression</span><span class="bar-track"><span class="bar w-45"></span></span><span>0.438</span></li>
+      <li><span>Gradient boosting</span><span class="bar-track"><span class="bar w-40"></span></span><span>0.420</span></li>
+      <li><span>Baseline</span><span class="bar-track"><span class="bar w-35"></span></span><span>0.340</span></li>
+    </ul>
+    <p>Test F1:</p>
+    <ul class="bar-list">
+      <li><span>Logistic regression</span><span class="bar-track"><span class="bar w-50"></span></span><span>0.510</span></li>
+      <li><span>Gradient boosting</span><span class="bar-track"><span class="bar w-50"></span></span><span>0.504</span></li>
+      <li><span>Baseline</span><span class="bar-track"><span class="bar w-50"></span></span><span>0.479</span></li>
+    </ul>
+    <p>Both models beat the baseline in every comparison except gradient boosting on September (0.408 against 0.409). The other components: profiles reach a silhouette of 0.51, municipal risk 0.21, and similar emergencies a precision at 5 of 0.94 with impact data (0.78 without) against 0.75 for random neighbors of the same type.</p>
+  </details>
+
+  <details class="landing-item">
+    <summary>Overfitting, underfitting, bias and risks</summary>
+    <ul>
+      <li>Overfitting: logistic regression reaches F1 0.54 on its training months against 0.51 on the test months, and gradient boosting 0.53 against 0.50, so neither memorises the training data. Scored on the same rows it was refitted on, the stored model would show F1 0.63; that is why every reported figure is out of time.</li>
+      <li>Stability: the cross-validated PR-AUC varies by ± 0.07 from one month to another, so a single month says little on its own. The test PR-AUC (0.54) is above the cross-validated mean (0.44), as expected for a model trained on more months (January–September instead of at most January–August).</li>
+      <li>Underfitting: with only type, place and month, a PR-AUC around 0.44–0.54 is the limit of what report-time data can say. The estimator ranks emergencies; it cannot be certain about any single one.</li>
+      <li>Class imbalance: both models use balanced class weights, and the threshold is tuned for F1 instead of the default 0.5.</li>
+      <li>Rare categories: municipalities and departments seen fewer than 3 times are grouped, and an event type with fewer than 3 historical cases gets no estimate (“Not enough history for this emergency type”) instead of an unreliable one.</li>
+      <li>Bias: places that report more emergencies weigh more in training, and impact is recorded unevenly across municipalities, so the estimate reflects what was reported, not the true risk.</li>
+      <li>Risk of over-trust: a probability can look more certain than it is. The application shows it with its three main factors, and it never blocks or decides anything.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Model selection</summary>
+    <ul>
+      <li>Impact estimator: the candidate with the higher PR-AUC on September is kept, and gradient boosting must beat logistic regression by more than 0.02 to be chosen; within that margin the simpler model with explainable factors wins. Logistic regression won (0.462 against 0.408).</li>
+      <li>Emergency profiles and municipal risk: the number of groups with the highest silhouette (K = 3 for both).</li>
+      <li>Activation in the application: each version is scored on its primary metric — F1 for the impact estimator, silhouette for profiles and municipal risk, precision at 5 for similar emergencies — and the activation gate described under Monitoring and maintenance decides whether it replaces the active one.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Final performance on the test set</summary>
+    <p>October–December 2025: 993 emergencies, 193 of them high impact. These months were not used to choose the model, its parameters or its threshold.</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col">Model</th><th scope="col">F1</th><th scope="col">Precision</th><th scope="col">Recall</th><th scope="col">PR-AUC</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Logistic regression (selected)</td><td>0.510</td><td>0.384</td><td>0.756</td><td>0.541</td></tr>
+          <tr><td>Baseline: same type and municipality</td><td>0.479</td><td>0.432</td><td>0.539</td><td>0.410</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The selected model finds three out of four high-impact emergencies (recall 0.76), against about half for the baseline, at the cost of more false alarms (precision 0.38).</p>
+  </details>
 </details>

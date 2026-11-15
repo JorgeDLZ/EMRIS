@@ -51,6 +51,28 @@ STAGE_ITEMS = {
         "Validation and hyperparameter tuning",
         "Experiments and domain knowledge",
     ],
+    "model-evaluation": [
+        "Evaluation metrics",
+        "Cross-validation",
+        "Model comparison",
+        "Overfitting, underfitting, bias and risks",
+        "Model selection",
+        "Final performance on the test set",
+    ],
+    "deployment": [
+        "Saved models and preprocessing",
+        "Demonstration in the deployed application",
+        "Inputs, outputs, dependencies and execution",
+        "User instructions and integration",
+        "Monitoring, incidents and feedback",
+    ],
+    "monitoring": [
+        "Monitoring indicators",
+        "Drift and degradation detection",
+        "Review frequency, responsibilities and retraining criteria",
+        "Risks, quality controls and updates",
+        "Initial monitoring test (simulated data)",
+    ],
 }
 REFERENCE_TITLES = (
     "Towards CRISP-ML(Q): A Machine Learning Process Model with Quality Assurance Methodology",
@@ -216,3 +238,10 @@ def test_stage_items_follow_the_course_requirements(client, db):
 
 def test_landing_mentions_no_expert_review(client, db):
     assert "expert" not in landing(client).lower()
+
+
+def test_monitoring_test_is_labelled_simulated(client, db):
+    section = panel(landing(client), "monitoring")
+    item = section[section.index("<summary>Initial monitoring test (simulated data)</summary>") :]
+    assert "Simulated" in item
+    assert "monitor_models --simulate" in item

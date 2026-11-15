@@ -1,14 +1,79 @@
 <details id="monitoring" class="landing-stage-panel">
   <summary><h3 class="landing-stage">Monitoring and maintenance</h3></summary>
-  <ul>
-    <li>Protocols: agreed procedures for supervising the system.</li>
-    <li>Continuous supervision: watching how the model behaves in use.</li>
-    <li>Drift detection: noticing when new data stop resembling the training data.</li>
-    <li>Model updates: retraining and replacing models when needed.</li>
-    <li>Risk review: revisiting the risks as the system evolves.</li>
-  </ul>
-  <div class="card landing-in-emris">
-    <h4>In EMRIS</h4>
-    <p>Administrators retrain the models from the interface; training uses the historical records plus the closed emergencies with a recorded impact. A new version is activated only if it passes the quality gate: the impact estimator and the emergency profiles need a strictly better candidate, compared on records dated after the active model's training period, while similar emergencies and municipal risk need a candidate that is not worse. A run still running after 30 minutes is marked failed. Every version is kept, so any previous one can be reactivated.</p>
-  </div>
+  <p class="landing-stage-lead">How the impact estimator is watched once it is in use, when it is retrained and how a bad update is avoided or undone.</p>
+
+  <details class="landing-item">
+    <summary>Monitoring indicators</summary>
+    <p>A monitoring check compares the emergencies reported since the end of the active model's training period with the data that model was trained on. Administrators run it from the Models page (“Run check”) or with <code>python manage.py monitor_models</code>, and every check is saved with its indicators:</p>
+    <ul>
+      <li>Event-type and department drift: the population stability index (PSI) between the training data and the new emergencies. Types and departments with less than 3% of the training rows are compared as one “Other” group, so a small batch spread over rare categories does not raise false alarms.</li>
+      <li>Score drift: the PSI of the estimated probabilities, in ten bins, against those of the training data.</li>
+      <li>Unavailable estimates: the share of new emergencies with no estimate.</li>
+      <li>Unseen municipalities: the share of new emergencies in municipalities the model never saw.</li>
+      <li>Share flagged as high impact, against the share in the training data.</li>
+      <li>F1 on the closed emergencies with a recorded impact (when there are at least 30), against the test F1 of the active version.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Drift and degradation detection</summary>
+    <p>The PSI adds, over every category or bin, the difference between the new share and the training share multiplied by the logarithm of their ratio. It is 0 when both distributions are equal and grows as they move apart. The usual limits are applied: below 0.10 the distribution is stable, from 0.10 to 0.25 the drift is moderate, and from 0.25 it is significant.</p>
+    <ul>
+      <li><strong>Not enough data</strong>: fewer than 30 new emergencies.</li>
+      <li><strong>Retraining recommended</strong>: a significant drift, or an F1 more than 0.10 below the active version's test F1.</li>
+      <li><strong>Watch</strong>: a moderate drift, more than 10% of emergencies in unseen municipalities, or a share flagged as high impact that moved by more than 10 points.</li>
+      <li><strong>Stable</strong>: none of the above.</li>
+    </ul>
+    <p>Drift only says that the new emergencies look different; the F1 on closed emergencies is what shows whether the estimates actually got worse.</p>
+  </details>
+
+  <details class="landing-item">
+    <summary>Review frequency, responsibilities and retraining criteria</summary>
+    <ul>
+      <li>Administrators run a monitoring check once a month and before every retrain, and read its status and alerts on the Models page.</li>
+      <li>When the status is “Retraining recommended”, an administrator retrains from the Models page. Training uses the UNGRD history plus every closed emergency with a recorded impact.</li>
+      <li>The activation gate decides whether the new version replaces the active one: the impact estimator and the emergency profiles need a strictly better candidate, compared on emergencies dated after the active model's training period; similar emergencies and municipal risk need a candidate that is not worse.</li>
+      <li>If a new version behaves worse in use, an administrator reactivates an earlier one from the Models page.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Risks, quality controls and updates</summary>
+    <ul>
+      <li>A bad update is stopped by the activation gate, and every version is kept, so any earlier one can be reactivated.</li>
+      <li>Only one retrain can run at a time, and a run still running after 30 minutes is marked failed.</li>
+      <li>Training computes distances in chunks of at most 64 MB, so it fits within the 512 MB of the free Render service.</li>
+      <li>The automated test suite runs on every push to <code>develop</code> and <code>main</code>, and Render deploys only <code>main</code>.</li>
+      <li>Risk: the history covers only 2025, so drift is expected as new years are registered; the checks make it visible instead of letting it go unnoticed.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Initial monitoring test (simulated data)</summary>
+    <p>No emergencies have been registered after the training period yet, so the first test uses a simulated batch: 300 invented emergencies dated over the 90 days after the training period, drawn from the 2025 history with half of them forced to the second most frequent event type (Landslide). They are scored by the active model and saved as a check marked Simulated; no emergency is written to the database. Output of <code>python manage.py monitor_models --simulate</code>:</p>
+    <div class="table-wrap"><pre>Simulated data
+Status: Retraining recommended
+Window: 2026-01-01 to 2026-03-31
+emergencies: 300
+type_psi: 0.6931
+type_drift: significant
+department_psi: 0.0735
+department_drift: stable
+score_psi: 0.1007
+score_drift: moderate
+unavailable_share: 0.0
+unseen_share: 0.0
+flagged_share: 0.1867
+reference_flagged_share: 0.2905
+labelled: 300
+f1: 0.5556
+precision: 0.4464
+recall: 0.7353
+reference_f1: 0.5095986038394416
+Alert: Event-type distribution drifted (PSI 0.69, significant)
+Alert: Score distribution drifted (PSI 0.10, moderate)
+Alert: Share flagged as high impact moved from 29% to 19%</pre></div>
+    <p>The status is “Retraining recommended” because the event-type PSI (0.69) is above 0.25: the batch has far more landslides than the training data. The F1 on the simulated labels (0.56) did not drop, which shows why drift and performance are reported separately.</p>
+    <p>The same test runs without a database with <code>python scripts/monitoring_test.py</code>: on a normal simulated batch every PSI stays below 0.10 (event type 0.019, department 0.030, score 0.048) and the status is stable; on the shifted batch the event-type PSI reaches 0.782 and the status is retrain.</p>
+  </details>
 </details>

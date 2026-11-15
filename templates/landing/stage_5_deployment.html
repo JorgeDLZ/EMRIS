@@ -1,11 +1,66 @@
 <details id="deployment" class="landing-stage-panel">
   <summary><h3 class="landing-stage">Deployment</h3></summary>
-  <ul>
-    <li>Production deployment: making the model available to its users inside a real system.</li>
-    <li>Documentation and training: explaining to users how the system works and how to operate it.</li>
-  </ul>
-  <div class="card landing-in-emris">
-    <h4>In EMRIS</h4>
-    <p>The application runs on Render with a Supabase PostgreSQL database. The four components are trained from the database and stored as versioned models in the database. They appear inside the workflow: the estimated probability, profile and municipal risk level on each emergency, the open emergencies ordered by estimated probability, and the suggested action plan from similar past cases. Excel reports export emergencies, the municipal risk ranking and the UNGRD history.</p>
-  </div>
+  <p class="landing-stage-lead">How the trained models are stored, served inside the application and used by each role.</p>
+
+  <details class="landing-item">
+    <summary>Saved models and preprocessing</summary>
+    <ul>
+      <li>Each trained component is saved whole: for the impact estimator, the scikit-learn <code>Pipeline</code> with its encoders and model, together with its tuned threshold. It is serialised with joblib (compression level 3) and stored in the database, so it survives redeploys of the free Render service, which has no persistent disk.</li>
+      <li>Every version is one row with its component, version number, metrics, training period, number of rows and the versions of the libraries it was trained with. Every prediction stores the version that produced it.</li>
+      <li>Models are loaded only when first needed, and only the active version of each component is kept in memory by each process.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Demonstration in the deployed application</summary>
+    <p>The course suggests a small Flask application to demonstrate the model. EMRIS replaces it with the deployed Django application itself: reporting a new emergency (Report emergency) sends its inputs to the active models, and the estimate, its factors and the municipal risk level appear on the emergency at once. The reasons are one stack and one deployment, a model that already lives inside the information system it was built for, and no second service to run on the free tier.</p>
+  </details>
+
+  <details class="landing-item">
+    <summary>Inputs, outputs, dependencies and execution</summary>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col">Component</th><th scope="col">Inputs</th><th scope="col">Outputs</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Impact estimator</td><td>Event type, department, municipality and date of the report</td><td>Probability of high impact, the high-impact flag at the tuned threshold and the three main factors</td></tr>
+          <tr><td>Emergency profiles</td><td>The recorded impact</td><td>Profile name</td></tr>
+          <tr><td>Similar emergencies</td><td>Type, place, date and, when recorded, the impact</td><td>The five most similar past emergencies and the suggested actions</td></tr>
+          <tr><td>Municipal risk</td><td>The municipality</td><td>Risk level, for example “Risk level 2 of 3”, or “Insufficient history”</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Dependencies are pinned in <code>requirements.txt</code>: Django 5.2, scikit-learn 1.9.1, pandas 3.1.1, NumPy 2.5.4 and joblib 1.6.0, among others. To run it locally:</p>
+    <ol>
+      <li>Create a virtual environment and run <code>pip install -r requirements.txt</code>.</li>
+      <li>Copy <code>.env.example</code> to <code>.env</code> and set <code>DEBUG=True</code>.</li>
+      <li>Run <code>python manage.py migrate</code>.</li>
+      <li>Load the data with <code>python manage.py load_baseline</code> and <code>python manage.py load_seismic</code>.</li>
+      <li>Train the first models with <code>python manage.py train_initial</code>.</li>
+      <li>Create an administrator with <code>python manage.py createsuperuser</code> and start the server with <code>python manage.py runserver</code>.</li>
+    </ol>
+  </details>
+
+  <details class="landing-item">
+    <summary>User instructions and integration</summary>
+    <ul>
+      <li>Operators report an emergency; its estimated probability, main factors and municipal risk level appear on the emergency. When they record the impact, the emergency gets its profile. When they draft the action plan, “Suggest plan” shows the most similar past cases and lets them add the suggested actions, which they can edit.</li>
+      <li>The emergency list shows the open emergencies first, ordered by estimated probability, so the ones most likely to be high impact are seen first. Operators, risk managers and administrators also see the municipal risk ranking on the dashboard.</li>
+      <li>Risk managers and administrators approve the plans and close the emergencies.</li>
+      <li>Action owners see the emergencies where they own an action and update those actions.</li>
+      <li>Administrators manage the models on the Models page: metrics, retraining, rollback and monitoring checks.</li>
+    </ul>
+    <p>The information system the models are integrated into is EMRIS itself: every report stores its predictions with the model version that produced them, so the integration is part of the daily workflow rather than a separate tool.</p>
+  </details>
+
+  <details class="landing-item">
+    <summary>Monitoring, incidents and feedback</summary>
+    <ul>
+      <li>A failed prediction never blocks saving an emergency: the error is logged and the emergency shows “Prediction unavailable”.</li>
+      <li>A failed training run is recorded on the Models page with its reason, and the active models stay in place.</li>
+      <li>Incidents are reported to an administrator, who checks the Models page and the Render logs.</li>
+      <li>Feedback: users correct a suggested plan by editing it before approval, and every closed emergency with a recorded impact becomes training data for the next retrain.</li>
+    </ul>
+  </details>
 </details>
