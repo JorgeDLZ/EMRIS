@@ -99,8 +99,8 @@ def fit_pipeline(kind, frame):
     return pipeline.fit(report_time_features(frame), frame["is_high_impact"])
 
 
-def choose_kind(f1_by_kind):
-    margin = f1_by_kind[GRADIENT_BOOSTING] - f1_by_kind[LOGISTIC_REGRESSION]
+def choose_kind(score_by_kind):
+    margin = score_by_kind[GRADIENT_BOOSTING] - score_by_kind[LOGISTIC_REGRESSION]
     return GRADIENT_BOOSTING if margin > TIE_MARGIN else LOGISTIC_REGRESSION
 
 
@@ -191,11 +191,13 @@ def _candidate_scores(fitted, part):
     return fitted.predict_proba(report_time_features(part))[:, 1]
 
 
-def _validation_threshold(name, fit_part, validation, validation_labels):
+def _validate_candidate(name, fit_part, validation, validation_labels):
     if validation.empty:
-        return DEFAULT_THRESHOLD
+        return DEFAULT_THRESHOLD, 0.0
     fitted = _fit_candidate(name, fit_part)
-    return best_f1_threshold(validation_labels, _candidate_scores(fitted, validation))
+    scores = _candidate_scores(fitted, validation)
+    threshold = best_f1_threshold(validation_labels, scores)
+    return threshold, classification_metrics(validation_labels, scores, threshold)["pr_auc"]
 
 
 def train_impact(frame):
@@ -206,9 +208,9 @@ def train_impact(frame):
     test_labels = labels[masks["test"].to_numpy()]
     validation, test = frame[masks["validation"]], frame[masks["test"]]
 
-    thresholds, test_metrics, train_fits = {}, {}, {}
+    thresholds, validation_pr_auc, test_metrics, train_fits = {}, {}, {}, {}
     for name in (LOGISTIC_REGRESSION, GRADIENT_BOOSTING, BASELINE):
-        thresholds[name] = _validation_threshold(
+        thresholds[name], validation_pr_auc[name] = _validate_candidate(
             name, frame[masks["fit"]], validation, validation_labels
         )
         train_fits[name] = _fit_candidate(name, frame[masks["train"]])
@@ -216,10 +218,12 @@ def train_impact(frame):
             test_labels, _candidate_scores(train_fits[name], test), thresholds[name]
         )
 
+    # The model is chosen on the validation month only; the test months are
+    # reported but never used for selection or tuning.
     kind = choose_kind(
         {
-            LOGISTIC_REGRESSION: test_metrics[LOGISTIC_REGRESSION]["f1"],
-            GRADIENT_BOOSTING: test_metrics[GRADIENT_BOOSTING]["f1"],
+            LOGISTIC_REGRESSION: validation_pr_auc[LOGISTIC_REGRESSION],
+            GRADIENT_BOOSTING: validation_pr_auc[GRADIENT_BOOSTING],
         }
     )
     importance = None
@@ -239,6 +243,8 @@ def train_impact(frame):
         "baseline_pr_auc": baseline["pr_auc"],
         "logistic_regression_f1": test_metrics[LOGISTIC_REGRESSION]["f1"],
         "gradient_boosting_f1": test_metrics[GRADIENT_BOOSTING]["f1"],
+        "logistic_regression_validation_pr_auc": validation_pr_auc[LOGISTIC_REGRESSION],
+        "gradient_boosting_validation_pr_auc": validation_pr_auc[GRADIENT_BOOSTING],
         "test_rows": int(masks["test"].sum()),
         "test_positives": int(test_labels.sum()),
     }

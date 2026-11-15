@@ -8,6 +8,7 @@ EXPECTED = [
     "03_emergency_profiles",
     "04_similar_emergencies",
     "05_municipal_risk",
+    "06_cross_validation",
 ]
 
 
