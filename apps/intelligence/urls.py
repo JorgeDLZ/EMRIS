@@ -8,4 +8,5 @@ urlpatterns = [
     path("", views.model_list, name="model_list"),
     path("retrain/", views.retrain, name="retrain"),
     path("versions/<int:pk>/activate/", views.activate, name="activate"),
+    path("monitoring/run/", views.run_monitoring, name="run_monitoring"),
 ]

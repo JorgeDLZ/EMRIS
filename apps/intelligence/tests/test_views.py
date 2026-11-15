@@ -5,8 +5,8 @@ from django.urls import reverse
 
 from apps.accounts.models import User
 from apps.accounts.roles import ACTION_OWNER, ADMINISTRATOR, OPERATOR, RISK_MANAGER
-from apps.intelligence import views
-from apps.intelligence.models import ModelVersion, TrainingRun
+from apps.intelligence import monitoring, services, views
+from apps.intelligence.models import IMPACT, ModelVersion, MonitoringCheck, TrainingRun
 from apps.intelligence.tests.test_training import synthetic  # noqa: F401
 from apps.intelligence.training import train_initial
 
@@ -183,3 +183,78 @@ def test_score_bar_step_is_clamped(db):
     assert steps["Impact estimator"] == 75
     assert steps["Emergency profiles"] == 0
     assert steps["Municipal risk"] == 0
+
+
+@pytest.fixture
+def monitored(monkeypatch, synthetic):
+    monkeypatch.setattr(monitoring, "build_training_frame", lambda: synthetic)
+    services.clear_cache()
+    train_initial()
+    yield synthetic
+    services.clear_cache()
+
+
+def monitoring_section(content):
+    return content[content.index("<h2>Monitoring</h2>") : content.index("<h2>Recent training runs</h2>")]
+
+
+def test_admin_runs_a_simulated_check(client, db, monitored):
+    login(client, ADMINISTRATOR)
+    response = client.post(reverse("intelligence:run_monitoring"), {"simulate": "1"})
+    assert response.status_code == 302
+    assert response.url == reverse("intelligence:model_list")
+    check = MonitoringCheck.objects.get()
+    assert check.is_simulated is True
+    assert any(m.startswith("Simulated monitoring check saved: ") for m in messages_of(response))
+
+
+def test_admin_runs_an_operational_check(client, db, monitored):
+    login(client, ADMINISTRATOR)
+    response = client.post(reverse("intelligence:run_monitoring"))
+    assert MonitoringCheck.objects.get().is_simulated is False
+    assert "Monitoring check saved: Not enough data." in messages_of(response)
+
+
+def test_monitoring_without_an_active_model(client, db):
+    login(client, ADMINISTRATOR)
+    response = client.post(reverse("intelligence:run_monitoring"))
+    assert response.status_code == 302
+    assert "No active impact model." in messages_of(response)
+    assert MonitoringCheck.objects.count() == 0
+
+
+def test_models_page_lists_checks_with_simulated_label(client, db, monitored):
+    login(client, ADMINISTRATOR)
+    client.post(reverse("intelligence:run_monitoring"))
+    client.post(reverse("intelligence:run_monitoring"), {"simulate": "1"})
+    version = ModelVersion.objects.get(component=IMPACT, is_active=True)
+    version.metadata.pop("score_bins")
+    version.save(update_fields=["metadata"])
+    section = monitoring_section(client.get(reverse("intelligence:model_list")).content.decode())
+    assert '<button type="submit" class="btn btn-secondary">Run check</button>' in section
+    assert "Run simulated check</button>" in section
+    assert '<span class="badge badge-warning">Simulated</span>' in section
+    assert "Operational" in section
+    assert "—" in section
+    assert "Not available until the next retrain" in section
+    assert "Event-type distribution drifted" in section
+
+
+def test_models_page_shows_the_ten_latest_checks(client, db, monitored):
+    login(client, ADMINISTRATOR)
+    client.post(reverse("intelligence:run_monitoring"))
+    check = MonitoringCheck.objects.get()
+    for _ in range(11):
+        check.pk = None
+        check.save()
+    section = monitoring_section(client.get(reverse("intelligence:model_list")).content.decode())
+    assert section.count("<tr>") - 1 == views.RECENT_CHECKS == 10
+
+
+def test_monitoring_requires_post_and_administrator(client, db):
+    login(client, ADMINISTRATOR)
+    assert client.get(reverse("intelligence:run_monitoring")).status_code == 405
+    for role in (RISK_MANAGER, OPERATOR, ACTION_OWNER):
+        login(client, role)
+        assert client.post(reverse("intelligence:run_monitoring"), {"simulate": "1"}).status_code == 403
+    assert MonitoringCheck.objects.count() == 0

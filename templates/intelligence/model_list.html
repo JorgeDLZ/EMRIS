@@ -66,6 +66,61 @@
     </section>
   {% endfor %}
 
+  <h2>Monitoring</h2>
+  <section class="card">
+    <p>Each check compares the emergencies registered after the impact estimator's training period with its training data. The population stability index (PSI) measures how much a distribution has moved: below 0.10 is stable, from 0.10 to 0.25 is a moderate change and 0.25 or more is significant. Simulated checks use generated emergencies and never change real records.</p>
+    <div class="button-row">
+      <form method="post" action="{% url 'intelligence:run_monitoring' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-secondary">Run check</button>
+      </form>
+      <form method="post" action="{% url 'intelligence:run_monitoring' %}">
+        {% csrf_token %}
+        <input type="hidden" name="simulate" value="1">
+        <button type="submit" class="btn btn-secondary">Run simulated check</button>
+      </form>
+    </div>
+    {% if monitoring %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th scope="col">Date</th><th scope="col">Data</th><th scope="col">Window</th><th scope="col">Emergencies</th><th scope="col">Event-type drift</th><th scope="col">Department drift</th><th scope="col">Score drift</th><th scope="col">Unseen municipalities</th><th scope="col">F1 on closed emergencies</th><th scope="col">Status</th></tr>
+          </thead>
+          <tbody>
+            {% for row in monitoring %}
+              <tr>
+                <td>{{ row.check.created_at|date:"Y-m-d H:i" }}</td>
+                <td>{% if row.check.is_simulated %}<span class="badge badge-warning">Simulated</span>{% else %}Operational{% endif %}</td>
+                <td>{{ row.check.window_start|date:"Y-m-d" }} to {{ row.check.window_end|date:"Y-m-d" }}</td>
+                <td>{{ row.check.indicators.emergencies }}</td>
+                <td>{{ row.type_drift }}</td>
+                <td>{{ row.department_drift }}</td>
+                <td>{{ row.score_drift }}</td>
+                <td>{{ row.unseen }}</td>
+                <td>{{ row.f1 }}</td>
+                <td>{{ row.check.get_status_display }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% with latest=monitoring.0.check %}
+        {% if latest.indicators.alerts %}
+          <h3>Alerts in the latest check</h3>
+          <ul>
+            {% for alert in latest.indicators.alerts %}
+              <li>{{ alert }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+    {% else %}
+      <div class="empty-state">
+        <p>No monitoring checks yet.</p>
+      </div>
+    {% endif %}
+  </section>
+
   <h2>Recent training runs</h2>
   {% if runs %}
     <div class="table-wrap">

@@ -58,6 +58,7 @@ VIEW_CAPABILITY = {
     "intelligence:model_list": "manage_models",
     "intelligence:retrain": "manage_models",
     "intelligence:activate": "manage_models",
+    "intelligence:run_monitoring": "manage_models",
     "places:municipality_list": "register_municipalities",
     "places:municipality_create": "register_municipalities",
     "places:municipality_pending": "validate_municipalities",
@@ -198,6 +199,7 @@ CASES = [
     ("history:record_list", None, "get", {}, OWNER, 403),
     ("intelligence:model_list", None, "get", {}, ADMIN, 200),
     ("intelligence:model_list", None, "get", {}, MANAGER, 403),
+    ("intelligence:run_monitoring", None, "post", {}, MANAGER, 403),
     ("accounts:user_list", None, "get", {}, ADMIN, 200),
     ("accounts:user_list", None, "get", {}, MANAGER, 403),
 ]
