@@ -45,6 +45,13 @@
       }
       var selected = field.options[field.selectedIndex];
       input.value = selected && selected.value ? selected.text.replace(/\s*\(.*\)$/, "") : "";
+      input.required = field.required;
+      field.required = false;
+      ["aria-invalid", "aria-describedby"].forEach(function (name) {
+        if (field.hasAttribute(name)) {
+          input.setAttribute(name, field.getAttribute(name));
+        }
+      });
       field.hidden = true;
       field.setAttribute("tabindex", "-1");
       field.parentNode.insertBefore(input, field.nextSibling);
