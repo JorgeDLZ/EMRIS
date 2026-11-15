@@ -1,0 +1,12 @@
+<details id="model-evaluation" class="landing-stage-panel">
+  <summary><h3 class="landing-stage">Model evaluation</h3></summary>
+  <ul>
+    <li>Validation and performance metrics: measuring how well each model does its job.</li>
+    <li>Cross-validation: checking that the results hold on data the model has not seen.</li>
+    <li>Risk analysis: identifying what could go wrong when the model is used.</li>
+  </ul>
+  <div class="card landing-in-emris">
+    <h4>In EMRIS</h4>
+    <p>The impact estimator and similar emergencies are evaluated with a time-based split: train on January–September, test on October–December. Emergency profiles and municipal risk are fitted and scored on the whole year. An expanding-window cross-validation over five folds (each validation month from May to September trained on all earlier months) gives a mean PR-AUC of 0.44 for logistic regression, 0.42 for gradient boosting and 0.34 for the baseline. On its training months the logistic regression reaches F1 0.54 against 0.51 on the test months, so it does not overfit. The selected logistic regression reaches F1 0.51 against 0.48 for the baseline of the same type and municipality. Profiles are stable across seeds (ARI 0.98) and municipal risk has a stability ARI of 0.73. Similar emergencies reach precision at 5 of 0.94 with impact data against 0.75 for random neighbors of the same type.</p>
+  </div>
+</details>

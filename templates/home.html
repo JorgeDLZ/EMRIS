@@ -26,7 +26,16 @@
       <li><a href="#problem">Problem statement and justification</a></li>
       <li><a href="#objectives">Objectives</a></li>
       <li><a href="#framework">Reference framework</a></li>
-      <li><a href="#methodology">CRISP-ML methodology</a></li>
+      <li><a href="#methodology">CRISP-ML methodology</a>
+        <ol>
+          <li><a href="#business-understanding">Business and data understanding</a></li>
+          <li><a href="#data-engineering">Data engineering</a></li>
+          <li><a href="#model-engineering">Model engineering</a></li>
+          <li><a href="#model-evaluation">Model evaluation</a></li>
+          <li><a href="#deployment">Deployment</a></li>
+          <li><a href="#monitoring">Monitoring and maintenance</a></li>
+        </ol>
+      </li>
       <li><a href="#timeline">Development timeline</a></li>
       <li><a href="#system">System and results</a></li>
       <li><a href="#references">References</a></li>
@@ -72,6 +81,8 @@
       <li>Supervised classification: logistic regression and gradient boosting, evaluated with F1, precision, recall and PR-AUC on a time-based split.</li>
       <li>Clustering: K-means and hierarchical agglomerative clustering (Ward), chosen with the silhouette score and checked for stability with the adjusted Rand index.</li>
       <li>Nearest neighbors: k-nearest neighbors (k = 5) to retrieve similar emergencies, evaluated with precision at 5.</li>
+      <li>Rolling-origin cross-validation: each fold trains on all the months before its validation month, so the model is always validated on months after the ones it learned from.</li>
+      <li>Population stability index (PSI): measures how far a distribution in use has moved from the training data, to detect drift.</li>
       <li>Baselines: every model is compared with a simple rule before it is used.</li>
     </ul>
     <h3>Methodology</h3>
@@ -116,86 +127,14 @@
     </svg>
   </section>
 
-  <section id="business-understanding" class="landing-section">
-    <h3 class="landing-stage">Business and data understanding</h3>
-    <ul>
-      <li>Business objectives: what the organisation needs to achieve and how success will be recognised.</li>
-      <li>Key questions: what the project has to answer for its users.</li>
-      <li>Data assessment: which data exist, where they come from and how reliable they are.</li>
-      <li>Feasibility analysis: whether the objectives can be met with the available data and resources.</li>
-    </ul>
-    <div class="card landing-in-emris">
-      <h4>In EMRIS</h4>
-      <p>The objective is to support prioritisation and response planning in risk councils with four components: an impact estimator, emergency profiles, similar emergencies with a suggested action plan and a municipal risk level. The data are the 2025 UNGRD emergency history, the DANE DIVIPOLA municipality codes and the SGC seismicity catalog of magnitude 2.5 and above. The impact estimator uses only fields known at report time: event type, department, municipality and month.</p>
-    </div>
-  </section>
-
-  <section id="data-engineering" class="landing-section">
-    <h3 class="landing-stage">Data engineering</h3>
-    <ul>
-      <li>Selection: choosing the records and variables that the models will use.</li>
-      <li>Cleaning: removing errors, duplicates and inconsistencies.</li>
-      <li>Transformation: turning the cleaned data into the form the algorithms need.</li>
-      <li>Documentation: recording every decision taken on the data.</li>
-    </ul>
-    <div class="card landing-in-emris">
-      <h4>In EMRIS</h4>
-      <p>The UNGRD file is kept exactly as downloaded. The load commands clean it, link each record to its DIVIPOLA municipality and extract the response actions from the free-text comments. The SGC catalog is filtered to magnitude 2.5 and above with rows unchanged, and each event is linked to a municipality. Both loads can be run again without duplicating data. The exploration notebook documents the findings.</p>
-    </div>
-  </section>
-
-  <section id="model-engineering" class="landing-section">
-    <h3 class="landing-stage">Model engineering</h3>
-    <ul>
-      <li>Algorithm selection: comparing candidate techniques for each problem.</li>
-      <li>Documentation: describing the chosen techniques and why they were chosen.</li>
-      <li>Training: fitting the models on the prepared data.</li>
-      <li>Hyperparameter tuning: adjusting the settings that control how a model learns.</li>
-    </ul>
-    <div class="card landing-in-emris">
-      <h4>In EMRIS</h4>
-      <p>The impact estimator compares logistic regression and gradient boosting against a type-and-location baseline. The candidate is chosen on September (validation PR-AUC 0.46 for logistic regression against 0.41 for gradient boosting), and its decision threshold is tuned on the same month, so the October–December test months are never used for selection or tuning. The regularisation strength C was tuned with an expanding-window cross-validation (0.1, 0.3, 1 and 3 gave mean PR-AUC 0.42–0.44, so the default C = 1 was kept). Emergency profiles use K-means on log-scaled impact variables. Similar emergencies use k-nearest neighbors (k = 5) on type, place, month and impact. Municipal risk uses hierarchical agglomerative clustering (Ward) of municipalities with at least 3 emergencies. Six notebooks document the exploration, the four models and the cross-validation.</p>
-    </div>
-  </section>
-
-  <section id="model-evaluation" class="landing-section">
-    <h3 class="landing-stage">Model evaluation</h3>
-    <ul>
-      <li>Validation and performance metrics: measuring how well each model does its job.</li>
-      <li>Cross-validation: checking that the results hold on data the model has not seen.</li>
-      <li>Risk analysis: identifying what could go wrong when the model is used.</li>
-    </ul>
-    <div class="card landing-in-emris">
-      <h4>In EMRIS</h4>
-      <p>The impact estimator and similar emergencies are evaluated with a time-based split: train on January–September, test on October–December. Emergency profiles and municipal risk are fitted and scored on the whole year. An expanding-window cross-validation over five folds (each validation month from May to September trained on all earlier months) gives a mean PR-AUC of 0.44 for logistic regression, 0.42 for gradient boosting and 0.34 for the baseline. On its training months the logistic regression reaches F1 0.54 against 0.51 on the test months, so it does not overfit. The selected logistic regression reaches F1 0.51 against 0.48 for the baseline of the same type and municipality. Profiles are stable across seeds (ARI 0.98) and municipal risk has a stability ARI of 0.73. Similar emergencies reach precision at 5 of 0.94 with impact data against 0.75 for random neighbors of the same type.</p>
-    </div>
-  </section>
-
-  <section id="deployment" class="landing-section">
-    <h3 class="landing-stage">Deployment</h3>
-    <ul>
-      <li>Production deployment: making the model available to its users inside a real system.</li>
-      <li>Documentation and training: explaining to users how the system works and how to operate it.</li>
-    </ul>
-    <div class="card landing-in-emris">
-      <h4>In EMRIS</h4>
-      <p>The application runs on Render with a Supabase PostgreSQL database. The four components are trained from the database and stored as versioned models in the database. They appear inside the workflow: the estimated probability, profile and municipal risk level on each emergency, the open emergencies ordered by estimated probability, and the suggested action plan from similar past cases. Excel reports export emergencies, the municipal risk ranking and the UNGRD history.</p>
-    </div>
-  </section>
-
-  <section id="monitoring" class="landing-section">
-    <h3 class="landing-stage">Monitoring and maintenance</h3>
-    <ul>
-      <li>Protocols: agreed procedures for supervising the system.</li>
-      <li>Continuous supervision: watching how the model behaves in use.</li>
-      <li>Drift detection: noticing when new data stop resembling the training data.</li>
-      <li>Model updates: retraining and replacing models when needed.</li>
-      <li>Risk review: revisiting the risks as the system evolves.</li>
-    </ul>
-    <div class="card landing-in-emris">
-      <h4>In EMRIS</h4>
-      <p>Administrators retrain the models from the interface; training uses the historical records plus the closed emergencies with a recorded impact. A new version is activated only if it passes the quality gate: the impact estimator and the emergency profiles need a strictly better candidate, compared on records dated after the active model's training period, while similar emergencies and municipal risk need a candidate that is not worse. A run still running after 30 minutes is marked failed. Every version is kept, so any previous one can be reactivated.</p>
-    </div>
+  <section id="stages" class="landing-section" aria-label="The CRISP-ML stages in EMRIS">
+    <p>Each stage below opens to show how it was carried out in EMRIS, item by item.</p>
+    {% include "landing/stage_1_understanding.html" %}
+    {% include "landing/stage_2_data.html" %}
+    {% include "landing/stage_3_modeling.html" %}
+    {% include "landing/stage_4_evaluation.html" %}
+    {% include "landing/stage_5_deployment.html" %}
+    {% include "landing/stage_6_monitoring.html" %}
   </section>
 
   <section id="timeline" class="landing-section">

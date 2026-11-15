@@ -1,0 +1,70 @@
+<details id="model-engineering" class="landing-stage-panel">
+  <summary><h3 class="landing-stage">Model engineering</h3></summary>
+  <p class="landing-stage-lead">Which algorithms were compared for each component, how they are configured and how their settings were chosen.</p>
+
+  <details class="landing-item">
+    <summary>Algorithms compared</summary>
+    <ul>
+      <li>Impact estimator: logistic regression and gradient boosting (scikit-learn <code>HistGradientBoostingClassifier</code>), against a baseline that predicts the high-impact rate of the same event type and municipality (falling back to type and department, then to type).</li>
+      <li>Emergency profiles: K-means with 3 to 8 groups.</li>
+      <li>Similar emergencies: k-nearest neighbors with and without the impact variables, against random neighbors of the same event type.</li>
+      <li>Municipal risk: hierarchical agglomerative clustering (Ward) with 3 to 5 levels.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Why these algorithms</summary>
+    <ul>
+      <li>Logistic regression works well with many one-hot categories and few rows per category, and its coefficients explain each estimate (the main factors shown on the emergency). Gradient boosting was included because it can capture interactions between type, place and month.</li>
+      <li>K-means gives one centroid per group, so each profile can be named after the impact variables that stand out in it.</li>
+      <li>k-nearest neighbors returns real past emergencies, so every suggested action can be traced back to the cases it comes from.</li>
+      <li>Ward clustering suits a few hundred municipalities, is deterministic and can be read on a dendrogram; since it cannot classify new points, the stored model is the municipality-to-level table of each version.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Features, parameters and configuration</summary>
+    <ul>
+      <li>Impact estimator: event type, department, municipality and cyclic month. Logistic regression with <code>C</code> = 1, balanced class weights and up to 2,000 iterations; gradient boosting with learning rate 0.1, no depth limit and balanced class weights. The decision threshold maximises F1 on September (0.499 for the selected model).</li>
+      <li>Emergency profiles: the nine impact variables after <code>log1p</code> and standardisation; K-means with 10 initialisations; K chosen by silhouette. Emergencies with no recorded impact are labelled “No recorded impact” instead of being clustered.</li>
+      <li>Similar emergencies: k = 5; event type weighs 5 and department, municipality, month and impact weigh 1 each. An action is suggested when at least 2 of the 5 neighbors had it.</li>
+      <li>Municipal risk: municipalities with at least 3 emergencies; K chosen by silhouette between 3 and 5; levels numbered by a severity score, from level 1 (lowest) upward.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Validation and hyperparameter tuning</summary>
+    <p>The candidate is chosen on the September validation month (PR-AUC 0.46 for logistic regression against 0.41 for gradient boosting) and never on the test months. Gradient boosting would only be preferred if it beat logistic regression by more than 0.02 PR-AUC.</p>
+    <p>The hyperparameters were tuned with the five-fold expanding-window cross-validation (May to September). Mean ± standard deviation of PR-AUC across the folds:</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col">Model</th><th scope="col">Configuration</th><th scope="col">PR-AUC</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Logistic regression</td><td>C = 0.3</td><td>0.441 ± 0.073</td></tr>
+          <tr><td>Logistic regression</td><td>C = 1 (default)</td><td>0.438 ± 0.071</td></tr>
+          <tr><td>Logistic regression</td><td>C = 0.1</td><td>0.434 ± 0.073</td></tr>
+          <tr><td>Gradient boosting</td><td>learning rate 0.05, no depth limit</td><td>0.429 ± 0.078</td></tr>
+          <tr><td>Logistic regression</td><td>C = 3</td><td>0.424 ± 0.071</td></tr>
+          <tr><td>Gradient boosting</td><td>learning rate 0.1, no depth limit (default)</td><td>0.420 ± 0.084</td></tr>
+          <tr><td>Gradient boosting</td><td>learning rate 0.1, depth 3</td><td>0.413 ± 0.071</td></tr>
+          <tr><td>Gradient boosting</td><td>learning rate 0.05, depth 3</td><td>0.411 ± 0.068</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>For logistic regression, C values of 0.1, 0.3, 1 and 3 gave mean PR-AUC 0.42–0.44. A configuration replaces the default only if it is better by more than the same 0.02 margin: the best one is ahead by 0.003 for logistic regression and 0.009 for gradient boosting, well inside the spread across folds, so both defaults were kept.</p>
+  </details>
+
+  <details class="landing-item">
+    <summary>Experiments and domain knowledge</summary>
+    <ul>
+      <li>No leakage: the impact estimator uses only what is known when an emergency is reported; a test checks that no impact variable reaches it.</li>
+      <li>Shallow earthquakes only: municipal risk counts earthquakes shallower than 70 km, because the deep Bucaramanga nest under Los Santos and Zapatoca (Santander) holds 5,703 of the 14,332 events and rarely causes damage.</li>
+      <li>Insufficient history: municipalities with fewer than 3 emergencies get “Insufficient history” instead of an unreliable level.</li>
+      <li>Event type first: in similarity the event type weighs 5, because an emergency of another type is rarely a useful example, whatever its place or month.</li>
+      <li>Label sensitivity: recomputing the 90th-percentile thresholds of the target on the training months only changes 22 of the 6,505 labels (notebook 06).</li>
+      <li>Experiment record: six notebooks — 01 exploration, 02 impact estimator, 03 emergency profiles, 04 similar emergencies, 05 municipal risk and 06 cross-validation.</li>
+    </ul>
+  </details>
+</details>

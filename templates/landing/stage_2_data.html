@@ -1,0 +1,97 @@
+<details id="data-engineering" class="landing-stage-panel">
+  <summary><h3 class="landing-stage">Data engineering</h3></summary>
+  <p class="landing-stage-lead">How the raw files become the clean, linked and documented data the models are trained on.</p>
+
+  <details class="landing-item">
+    <summary>Selected sources and features</summary>
+    <p>The raw files are kept exactly as downloaded in <code>data/</code>; the loader maps their Spanish columns and labels to the English schema. Of the 61 UNGRD columns EMRIS keeps the date, department, municipality, event type, the impact counts and the comment. Each component then uses only what it needs:</p>
+    <ul>
+      <li>Impact estimator: event type, department, municipality and month — only fields known when the emergency is reported.</li>
+      <li>Emergency profiles: the nine impact variables (deaths, injuries, missing people, people affected, families affected, homes destroyed, homes damaged, roads damaged and hectares).</li>
+      <li>Similar emergencies: type, place, month and the impact variables.</li>
+      <li>Municipal risk: per municipality, the number of emergencies, the share of the three main types, the share of high impact, the mean impact and the shallow seismic activity from the SGC catalog.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Missing values, duplicates, inconsistencies and outliers</summary>
+    <ul>
+      <li>Discarded rows: 1 row with an unknown event type (unknown event type: 1). Rows with an invalid date are also discarded; the 2025 file has none. 6,505 of the 6,506 rows are kept.</li>
+      <li>Numbers: values written with thousands separators, such as “1,700”, are parsed; negative and non-numeric values would be set to 0 (the 2025 file has none).</li>
+      <li>Text: comments and SGC place names are checked for broken accents (mojibake) and repaired; this changes no UNGRD comment and 14 SGC place names, such as “GuapotÃ¡” to “Guapotá”.</li>
+      <li>Places: department and municipality names are matched to DIVIPOLA after removing accents, with 25 explicit aliases for names written differently, such as “CALI”. The 24 rows reported at department level are kept with no municipality.</li>
+      <li>Duplicates: no row is fully duplicated. One emergency code is repeated on two department-level floods with different dates; both are kept. The load commands can run again without creating duplicates.</li>
+      <li>Outliers: very large values (up to 44,476 people affected or 60,000 hectares, against medians of 20 and 3) are kept, because they are the high-impact cases. Profiles and similarity use <code>log1p</code> scaling so they do not dominate the distances.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Encoding, scaling and feature engineering</summary>
+    <ul>
+      <li>Categories: event type, department and municipality are one-hot encoded. In the impact estimator, categories seen fewer than 3 times are grouped, and a category never seen in training is ignored instead of breaking the prediction.</li>
+      <li>Month: encoded as its sine and cosine, so December and January are close.</li>
+      <li>Impact variables: <code>log1p</code> followed by standardisation in profiles and similarity.</li>
+      <li>Municipal features: standardised before clustering.</li>
+      <li>Engineered features: the target <code>is_high_impact</code>, the response actions extracted from the comments by keyword rules (6,436 emergencies have at least one action) and, per municipality, the count and maximum magnitude of shallow earthquakes (depth below 70 km, magnitude 4.0 and above) within 50 km of its centre.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Data before and after processing</summary>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col">Raw files</th><th scope="col">Processed data</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>6,506 UNGRD rows, 61 columns with Spanish names</td><td>6,505 emergencies, 19 English columns</td></tr>
+          <tr><td>Event type as free text in Spanish</td><td>28 event types in English (Wildfire 2,979, Landslide 1,273, Flood 721, Windstorm 576, Structural fire 287)</td></tr>
+          <tr><td>Department and municipality names</td><td>DIVIPOLA codes for 1,122 municipalities; 24 emergencies at department level</td></tr>
+          <tr><td>Impact counts as text</td><td>Numbers; 688 emergencies with no recorded impact</td></tr>
+          <tr><td>Comment as free text</td><td>Response action codes</td></tr>
+          <tr><td>No target</td><td><code>is_high_impact</code>: 1,046 high-impact emergencies (16.1%)</td></tr>
+          <tr><td>SGC catalog, 14,332 events of magnitude 2.5 and above</td><td>12,270 events linked to a municipality name</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>One record, before and after (source row 1030):</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col">Field</th><th scope="col">Raw</th><th scope="col">Processed</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Date</td><td>2025 Feb 11 12:00:00 AM</td><td>2025-02-11</td></tr>
+          <tr><td>Event type</td><td>INCENDIO FORESTAL</td><td>Wildfire</td></tr>
+          <tr><td>Place</td><td>VICHADA / PUERTO CARREÑO</td><td>Department 99, municipality 99001</td></tr>
+          <tr><td>Hectares</td><td>1,700</td><td>1700.0</td></tr>
+          <tr><td>Comment</td><td>“… AFECTACIÓN: 1700 HECTÁREAS, ACCIONES: ATENDIDO POR BOMBEROS …”</td><td>Action: “Deploy the fire brigade”</td></tr>
+          <tr><td>Target</td><td>—</td><td>High impact: 1,700 hectares is above the wildfire 90th percentile (30 hectares)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details class="landing-item">
+    <summary>Transformations and their justification</summary>
+    <ul>
+      <li>Report-time features only for the impact estimator: at report time the impact is not known yet, so using it would leak the answer.</li>
+      <li>Grouping rare categories and ignoring unseen ones: new municipalities and rare event types appear in operation and must not break a prediction.</li>
+      <li><code>log1p</code> on impact counts: the counts are heavily skewed, and without it a few large emergencies would decide every cluster and every neighbor.</li>
+      <li>Cyclic month: seasonality (dry season wildfires, rainy season floods and landslides) is circular.</li>
+      <li>Type-wise 90th percentile in the target: what counts as large differs by event type; 1,700 hectares is large for a wildfire, while a flood is measured in people affected.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Training, validation and test partitions</summary>
+    <p>The split is by time, so the models are always tested on emergencies that happened after the ones they learned from:</p>
+    <ul>
+      <li>Fit: January–August (4,881 emergencies).</li>
+      <li>Validation: September (631) — used to choose between the candidate models and to tune the decision threshold.</li>
+      <li>Test: October–December (993, of which 193 high impact) — used only to report the final metrics, scored by models refitted on January–September.</li>
+      <li>Cross-validation: five expanding folds, each validating on one month from May to September and fitting on all earlier months.</li>
+    </ul>
+    <p>The encoders are part of a scikit-learn <code>Pipeline</code>, so they are fitted on the training rows only in every split. After the evaluation, the stored model is refitted on all rows.</p>
+  </details>
+</details>

@@ -18,6 +18,40 @@ STAGES = (
     "Deployment",
     "Monitoring and maintenance",
 )
+STAGE_IDS = (
+    "business-understanding",
+    "data-engineering",
+    "model-engineering",
+    "model-evaluation",
+    "deployment",
+    "monitoring",
+)
+STAGE_ITEMS = {
+    "business-understanding": [
+        "Problem, context and stakeholders",
+        "Business and machine learning objectives",
+        "Questions and learning tasks",
+        "Data sources, variables and target",
+        "Data quality, relevance and sufficiency",
+        "Feasibility, limitations and risks",
+        "Success criteria",
+    ],
+    "data-engineering": [
+        "Selected sources and features",
+        "Missing values, duplicates, inconsistencies and outliers",
+        "Encoding, scaling and feature engineering",
+        "Data before and after processing",
+        "Transformations and their justification",
+        "Training, validation and test partitions",
+    ],
+    "model-engineering": [
+        "Algorithms compared",
+        "Why these algorithms",
+        "Features, parameters and configuration",
+        "Validation and hyperparameter tuning",
+        "Experiments and domain knowledge",
+    ],
+}
 REFERENCE_TITLES = (
     "Towards CRISP-ML(Q): A Machine Learning Process Model with Quality Assurance Methodology",
     "CRISP-ML(Q): The ML Lifecycle Process",
@@ -37,6 +71,12 @@ GENERAL_OBJECTIVE = (
 
 def landing(client):
     return client.get(reverse("home")).content.decode()
+
+
+def panel(html, panel_id):
+    start = html.index(f'<details id="{panel_id}" class="landing-stage-panel">')
+    ends = [html.find(f'<details id="{other}"', start + 1) for other in STAGE_IDS]
+    return html[start : min([end for end in ends if end > 0] + [html.index('id="timeline"')])]
 
 
 def test_landing_is_public(client, db):
@@ -150,3 +190,29 @@ def test_landing_does_not_load_ml_libraries():
 def test_landing_reports_the_tuning_of_c(client, db):
     html = landing(client)
     assert "0.1, 0.3, 1 and 3 gave mean PR-AUC 0.42–0.44" in html
+
+
+def test_stages_are_collapsible_panels_in_order(client, db):
+    html = landing(client)
+    positions = [html.index(f'<details id="{panel_id}" class="landing-stage-panel">') for panel_id in STAGE_IDS]
+    assert positions == sorted(positions)
+    for panel_id, stage in zip(STAGE_IDS, STAGES):
+        assert f'<summary><h3 class="landing-stage">{stage}</h3></summary>' in panel(html, panel_id)
+
+
+def test_contents_link_every_stage(client, db):
+    contents = landing(client).split('id="contents"')[1].split('id="problem"')[0]
+    for panel_id in STAGE_IDS:
+        assert f'href="#{panel_id}"' in contents
+
+
+def test_stage_items_follow_the_course_requirements(client, db):
+    html = landing(client)
+    for panel_id, items in STAGE_ITEMS.items():
+        section = panel(html, panel_id)
+        found = re.findall(r'<details class="landing-item">\s*<summary>(.*?)</summary>', section)
+        assert found == items
+
+
+def test_landing_mentions_no_expert_review(client, db):
+    assert "expert" not in landing(client).lower()

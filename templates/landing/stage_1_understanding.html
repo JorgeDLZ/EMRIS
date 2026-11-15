@@ -1,0 +1,89 @@
+<details id="business-understanding" class="landing-stage-panel">
+  <summary><h3 class="landing-stage">Business and data understanding</h3></summary>
+  <p class="landing-stage-lead">What the risk councils need, which questions the models answer, which data exist and whether the project is feasible with them.</p>
+
+  <details class="landing-item">
+    <summary>Problem, context and stakeholders</summary>
+    <p>Colombia's departmental and municipal councils for disaster risk management, part of the national system created by Law 1523 of 2012, register every emergency, plan the response and follow it until it is closed. In 2025 the UNGRD reported 6,506 emergencies. Without one shared system it is hard to see which open emergencies need attention first, to reuse what worked in similar past cases and to compare how exposed each municipality is.</p>
+    <ul>
+      <li>Risk managers and administrators: prioritise open emergencies, approve action plans and manage the models.</li>
+      <li>Operators: report emergencies, record their impact and draft the action plans.</li>
+      <li>Action owners: carry out the actions assigned to them.</li>
+      <li>The UNGRD, as publisher of the open data the models learn from.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Business and machine learning objectives</summary>
+    <p>The business objective is to help a risk council decide faster and more consistently: which emergencies to look at first, what to do and where the risk concentrates. It is translated into four machine learning objectives:</p>
+    <ul>
+      <li>Estimate, when an emergency is reported, the probability that it becomes high impact.</li>
+      <li>Group emergencies with a recorded impact into interpretable profiles.</li>
+      <li>Retrieve the most similar past emergencies and suggest the actions they had in common.</li>
+      <li>Rank municipalities into risk levels from their emergency history and shallow seismic activity.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Questions and learning tasks</summary>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th scope="col">Component</th><th scope="col">Question</th><th scope="col">Learning task</th><th scope="col">Output in the application</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Impact estimator</td><td>Will this new emergency be high impact?</td><td>Binary classification</td><td>Estimated probability and its main factors on the emergency; open emergencies ordered by it on the dashboard.</td></tr>
+          <tr><td>Emergency profiles</td><td>What kind of impact did this emergency have?</td><td>Clustering (K-means)</td><td>A profile name, such as “Injuries and deaths”, once the impact is recorded.</td></tr>
+          <tr><td>Similar emergencies</td><td>Which past emergencies look like this one, and what was done?</td><td>Similarity retrieval with k-nearest neighbors</td><td>The five most similar past cases and a suggested action plan.</td></tr>
+          <tr><td>Municipal risk</td><td>Which municipalities concentrate the most risk?</td><td>Clustering of municipalities (hierarchical, Ward)</td><td>A risk level on each emergency and the municipal risk ranking.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details class="landing-item">
+    <summary>Data sources, variables and target</summary>
+    <ul>
+      <li>UNGRD “Emergencias UNGRD V2”: 6,506 rows and 61 columns, one row per emergency from 1 January to 31 December 2025, with date, department, municipality, event type, impact counts (deaths, injuries, missing people, people and families affected, homes destroyed and damaged, roads, bridges, hectares) and a free-text comment with the actions taken.</li>
+      <li>DANE DIVIPOLA: 1,122 municipalities in 33 departments, with their official codes and coordinates.</li>
+      <li>SGC seismicity catalog: 14,332 events of magnitude 2.5 and above, with time, magnitude, depth and place.</li>
+    </ul>
+    <p>The target of the impact estimator is <code>is_high_impact</code>. An emergency is high impact when it has any death, injury, missing person or destroyed home, or when its people affected or its hectares reach the 90th percentile of its event type, computed over the rows of that type with a value above zero. 1,046 of the 6,505 usable emergencies (16.1%) are high impact, so the classes are imbalanced.</p>
+  </details>
+
+  <details class="landing-item">
+    <summary>Data quality, relevance and sufficiency</summary>
+    <ul>
+      <li>Quality: only 1 of the 6,506 rows cannot be used (an unknown event type). No date is invalid, no impact count is empty, negative or non-numeric, and no row is fully duplicated. 213 rows write numbers with thousands separators, such as “1,700”.</li>
+      <li>Relevance: the file holds exactly what a council records — type, place, date, impact and actions — so the models learn from the same fields the application asks for.</li>
+      <li>Sufficiency: 6,505 emergencies are enough for a linear model and for clustering, but some categories are rare: 939 municipalities have at least one emergency and 319 of them have only one or two. Categories seen fewer than 3 times are grouped, and municipalities with fewer than 3 emergencies get “Insufficient history” instead of a risk level.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Feasibility, limitations and risks</summary>
+    <ul>
+      <li>One year of data: seasonality is only seen within 2025, so the month effect may not repeat in other years.</li>
+      <li>Free hosting: the Render service has 512 MB of memory and sleeps after 15 minutes idle (about one minute to wake), and the Supabase database pauses after a week of inactivity. Models are loaded lazily and only the active ones are kept in memory.</li>
+      <li>Label definition: the 90th-percentile thresholds of the target are computed over the whole year, so the definition of “high impact” sees the October–December test months. This is a limitation of the evaluation; recomputing the thresholds on the training months only changes 22 of the 6,505 labels.</li>
+      <li>Use of the results: the models support the staff's decisions and do not replace them. They do not predict where or when a disaster will happen.</li>
+    </ul>
+  </details>
+
+  <details class="landing-item">
+    <summary>Success criteria</summary>
+    <ol>
+      <li>The application is deployed on Render and works end to end against Supabase.</li>
+      <li>Each of the four components runs inside the application on newly registered emergencies, shows its result and stores the model version that produced it.</li>
+      <li>Each model is evaluated against a simple baseline, with metrics visible to the administrator.</li>
+      <li>An administrator can retrain from the interface, and a new model is activated only if it is better.</li>
+      <li>The repository contains only functional code.</li>
+    </ol>
+    <p>Measurable criteria per component:</p>
+    <ul>
+      <li>Impact estimator: F1 above the “same type and municipality” baseline on October–December.</li>
+      <li>Emergency profiles and municipal risk: the number of groups chosen by silhouette, and a stability ARI that shows the groups do not depend on the random seed or on the sample.</li>
+      <li>Similar emergencies: precision at 5 above random neighbors of the same type.</li>
+    </ul>
+  </details>
+</details>
