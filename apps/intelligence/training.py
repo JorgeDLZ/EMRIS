@@ -202,8 +202,10 @@ def start_runs(actor):
 
 def _metadata(component, frame, result):
     if component == IMPACT:
-        counts = frame["event_type"].value_counts()
-        return {"type_counts": {str(name): int(count) for name, count in counts.items()}}
+        from ml.monitoring import reference_profile
+
+        model = result.model
+        return reference_profile(frame, model.probability(frame), model.threshold)
     if component == MUNICIPAL_RISK:
         model = result.model
         ranking = [

@@ -89,3 +89,35 @@ class Prediction(models.Model):
 
     def __str__(self):
         return f"{self.get_component_display()} prediction for emergency {self.emergency_id}"
+
+
+class MonitoringCheck(models.Model):
+    STABLE = "stable"
+    WATCH = "watch"
+    RETRAIN = "retrain"
+    NOT_ENOUGH_DATA = "not_enough_data"
+    STATUS_CHOICES = [
+        (STABLE, "Stable"),
+        (WATCH, "Watch"),
+        (RETRAIN, "Retraining recommended"),
+        (NOT_ENOUGH_DATA, "Not enough data"),
+    ]
+
+    model_version = models.ForeignKey(
+        ModelVersion, null=True, on_delete=models.SET_NULL, related_name="monitoring_checks"
+    )
+    is_simulated = models.BooleanField(default=False)
+    window_start = models.DateField()
+    window_end = models.DateField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    indicators = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    triggered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+
+    class Meta:
+        ordering = ["-created_at", "-pk"]
+
+    def __str__(self):
+        return f"Monitoring check {self.created_at:%Y-%m-%d} ({self.get_status_display()})"
