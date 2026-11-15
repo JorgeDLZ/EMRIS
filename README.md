@@ -11,7 +11,8 @@ EMRIS (Emergency Management & Resource Information System) is a web application 
 - Emergency type catalog managed by administrators and risk managers
 - Cleaned UNGRD emergency history (2025), with the response actions extracted from the free-text comments
 - SGC seismicity catalog (magnitude 2.5 and above) linked to municipalities
-- Emergencies: report, edit, list with filters and detail page
+- Emergencies: report, edit, list with filters and detail page; the municipality is chosen by department with a search that matches the typed characters, ignoring accents and case
+- Proper names (departments, municipalities, emergency sites and organizations) are stored in capitals, and searches are matched and shown the same way
 - Impact recorded with 10 variables per emergency
 - Follow-up with the status flow `Reported → In response → Controlled → Closed`: a controlled emergency can return to in response, closing requires a recorded impact, and closed emergencies are read-only
 - Action plans (one per emergency): operators draft them and administrators and risk managers approve them; each plan has actions with owners, due dates and statuses
@@ -92,6 +93,9 @@ References:
 
 - **Public landing page (`/`):** describes the project structure (problem, objectives, reference framework), the CRISP-ML methodology with what EMRIS did in each stage, the development timeline, the system modules, the models with their metrics and the references. Signed-out visitors can log in or register from it.
 - **Signed-in application:** a left sidebar whose groups show only the modules the user's role can open. The groups are Overview, Operations, Intelligence, Reference data and Administration; a group with no accessible module is hidden.
+- **Report an emergency:** fields grouped in sections (What happened, Where, When). The department narrows the municipality search, which suggests matches as you type. Magnitude and depth appear in an Earthquake details section only when the type is Earthquake.
+- **Forms:** required fields are marked with `*`, each field can carry a short help text, and when the server rejects a form an error summary at the top links to every field to correct. The impact form is grouped into People, Homes, Infrastructure and Land.
+- **List filters:** the Emergencies, UNGRD history and Municipalities lists offer the same department filter and municipality search.
 
 ## Dashboard and reports
 

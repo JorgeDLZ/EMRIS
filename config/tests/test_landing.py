@@ -83,15 +83,17 @@ def test_landing_states_objectives_and_law(client, db):
     assert "Ley 1523 de 2012" in html
 
 
-def test_landing_timeline_has_seven_milestones(client, db):
+def test_landing_timeline_has_eight_milestones(client, db):
     html = landing(client)
     section = html[html.index('id="timeline"') : html.index('id="system"')]
     assert 'class="table-wrap"' in section
     body = section[section.index("<tbody>") : section.index("</tbody>")]
     rows = re.findall(r"<tr>(.*?)</tr>", body, re.S)
-    assert len(rows) == 7
+    assert len(rows) == 8
     assert "Foundation" in rows[0]
     assert "7–8 Nov 2026" in rows[0]
+    assert "Usability and data quality" in rows[7]
+    assert "14 Nov 2026" in rows[7]
 
 
 def test_landing_for_signed_in_user(client, db):
