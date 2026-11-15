@@ -43,10 +43,16 @@ Four components, evaluated offline on the 2025 UNGRD history. The impact estimat
 
 | Component | Technique | Evaluation |
 |---|---|---|
-| Impact estimator | Supervised classification of high-impact emergencies using only fields known at report time (event type, department, municipality, month). Logistic regression and gradient boosting are compared; the decision threshold is tuned on September. | Logistic regression selected: F1 0.51 (recall 0.77, precision 0.38, PR-AUC 0.54). Baseline "same type and municipality": F1 0.48 (PR-AUC 0.41). Gradient boosting: F1 0.50. |
+| Impact estimator | Supervised classification of high-impact emergencies using only fields known at report time (event type, department, municipality, month). Logistic regression and gradient boosting are compared; the decision threshold is tuned on September. | Logistic regression selected: F1 0.51 (recall 0.77, precision 0.38, PR-AUC 0.54). Baseline "same type and municipality": F1 0.48 (PR-AUC 0.41). Gradient boosting: F1 0.50. Cross-validated PR-AUC: 0.44 ± 0.07, baseline 0.34 ± 0.05. |
 | Emergency profiles | K-means on log-scaled impact variables; emergencies with no recorded impact are labeled separately. | K = 3 chosen by silhouette (0.51), stable across seeds (ARI 0.98): "Minor impact", "Families affected and people affected", "Injuries and deaths". |
 | Similar emergencies and suggested plan | k-nearest neighbors (k = 5) on type, place, month and impact. Suggested actions are those present in at least 2 of the 5 neighbors. | Precision@5 (same type and impact level): 0.94 with impact data, 0.78 without. Baseline, random neighbors of the same type: 0.75. |
 | Municipal risk | Hierarchical agglomerative clustering (Ward) of municipalities with at least 3 emergencies, using emergency count, share of the three main types, share of high impact, mean impact and shallow seismic activity (M ≥ 4, depth < 70 km, within 50 km, from the SGC catalog). | K = 3 chosen by silhouette (0.21) and dendrogram, stability ARI 0.73. 620 municipalities ranked, 319 with insufficient history. Deep earthquakes of the Bucaramanga nest are excluded, so they do not raise Santander's level. |
+
+### Cross-validation and tuning
+
+The impact estimator is also validated with a rolling-origin cross-validation by month (`ml/evaluation.py`, `rolling_origin_folds`): five folds, each validating on one month from May to September and training on all earlier months, so no fold trains on emergencies that happened after the ones it validates on. October–December is never used.
+
+`ml/tuning.py` (`tune_impact`) runs that cross-validation over 8 configurations: logistic regression with C = 0.1, 0.3, 1 and 3, and gradient boosting with learning rate 0.05 or 0.1 and depth 3 or unlimited. A configuration replaces the default only if its mean PR-AUC is higher by more than 0.02, the same margin used to choose between the two models. The best ones were ahead by 0.003 (logistic regression, C = 0.3) and 0.009 (gradient boosting, learning rate 0.05), within the spread across folds, so the defaults were kept. Each trained impact estimator stores its cross-validated PR-AUC (mean and standard deviation) with its metrics.
 
 ### In the application
 
@@ -55,7 +61,7 @@ The four components run inside the application. They are trained from the databa
 - **Emergency page, "Intelligence" block:** the estimated high-impact probability with its main factors, the emergency profile ("Profile pending" until the impact is recorded) and the municipal risk level ("Insufficient history" when the municipality has too little).
 - **Emergency list:** open emergencies by estimated probability, those without an estimate last, followed by closed emergencies.
 - **Action plan page:** "Suggest plan" shows the 5 most similar past cases and the suggested actions, which can be added to the plan with one click.
-- **Models page (`/intelligence/`, administrators):** active versions and metrics, version history with Activate (rollback), recent training runs and the Retrain button.
+- **Models page (`/intelligence/`, administrators):** active versions and metrics, version history with Activate (rollback), monitoring checks, recent training runs and the Retrain button.
 
 Retraining runs in the background and trains the four components from the historical records plus the closed emergencies with a recorded impact. A new version is activated only if it passes the gate:
 
@@ -81,7 +87,7 @@ The project follows CRISP-ML, an evolution of CRISP-DM for machine learning proj
 3. **Model engineering.** The impact estimator compares logistic regression and gradient boosting; the candidate is chosen and its threshold tuned on September, so the test months are never used for selection, and C is tuned with an expanding-window cross-validation. Profiles use K-means, similar emergencies use k-nearest neighbors (k = 5) and municipal risk uses hierarchical agglomerative clustering (Ward). Six notebooks document the exploration, the four models and the cross-validation.
 4. **Model evaluation.** Every model is compared with a simple baseline: the selected logistic regression reaches F1 0.51 against 0.48 for the baseline, profiles are stable across seeds (ARI 0.98) and similar emergencies reach precision at 5 of 0.94 against 0.75 for random neighbors of the same type.
 5. **Deployment.** The application runs on Render with a Supabase PostgreSQL database. The four components are trained from the database, stored as versioned models and shown inside the emergency workflow, and Excel reports export the results.
-6. **Monitoring and maintenance.** Administrators retrain the models from the interface, and a new version is activated only if it passes the quality gate. A run still running after 30 minutes is marked failed, and every version is kept so any previous one can be reactivated.
+6. **Monitoring and maintenance.** Administrators retrain the models from the interface, and a new version is activated only if it passes the quality gate. A run still running after 30 minutes is marked failed, and every version is kept so any previous one can be reactivated. Monitoring checks measure drift and performance on the new emergencies (see Monitoring).
 
 References:
 
@@ -91,7 +97,7 @@ References:
 
 ## Screens
 
-- **Public landing page (`/`):** describes the project structure (problem, objectives, reference framework), the CRISP-ML methodology with what EMRIS did in each stage, the development timeline, the system modules, the models with their metrics and the references. Signed-out visitors can log in or register from it.
+- **Public landing page (`/`):** describes the project structure (problem, objectives, reference framework), the CRISP-ML methodology with one collapsible panel per stage that documents, item by item, what EMRIS did in it, the development timeline, the system modules, the models with their metrics and the references. Signed-out visitors can log in or register from it.
 - **Signed-in application:** a left sidebar whose groups show only the modules the user's role can open. The groups are Overview, Operations, Intelligence, Reference data and Administration; a group with no accessible module is hidden.
 - **Report an emergency:** fields grouped in sections (What happened, Where, When). The department narrows the municipality search, which suggests matches as you type. Magnitude and depth appear in an Earthquake details section only when the type is Earthquake.
 - **Forms:** required fields are marked with `*`, each field can carry a short help text, and when the server rejects a form an error summary at the top links to every field to correct. The impact form is grouped into People, Homes, Infrastructure and Land.
@@ -116,7 +122,7 @@ Six notebooks document the exploration, the models and their validation:
 3. `03_emergency_profiles.ipynb`
 4. `04_similar_emergencies.ipynb`
 5. `05_municipal_risk.ipynb`
-6. `06_cross_validation.ipynb`: expanding-window cross-validation and tuning of C, overfitting check, recall by event type and a sensitivity check of the high-impact thresholds
+6. `06_cross_validation.ipynb`: the monthly folds, the hyperparameter search over the 8 configurations, the spread of PR-AUC across folds, the selected configuration, an overfitting check, recall by event type and a sensitivity check of the high-impact thresholds
 
 ```bash
 pip install -r requirements-notebooks.txt
@@ -125,12 +131,30 @@ jupyter notebook notebooks/
 
 Notebook outputs are cleared before committing. The notebook tools are not needed to run the application or the tests.
 
-## Monitoring test (simulated data)
+## Monitoring
 
-`scripts/monitoring_test.py` demonstrates the monitoring of the impact estimator on **simulated** reports, labelled `SIMULATED` everywhere. It trains the model from `data/`, scores two invented batches for January 2026 (one drawn from January 2025, one with floods and landslides four times as likely), logs every prediction to JSON lines and computes the indicators against January 2025: volume, share flagged as high impact, population stability index (PSI) of event type and department, and unseen municipalities. An alert is raised when a PSI exceeds 0.2, unseen municipalities exceed 10% or the flagged share moves more than 10 points. It does not touch the database.
+A monitoring check compares the emergencies reported after the active impact estimator's training period with the data it was trained on, and is saved with its indicators and a status:
+
+- Event-type and department drift: population stability index (PSI), with categories below 3% of the training rows grouped as "Other".
+- Score drift: PSI of the estimated probabilities in ten bins.
+- Share of emergencies with no estimate, share in municipalities the model never saw, and share flagged as high impact against the training data.
+- F1 on the closed emergencies with a recorded impact (when there are at least 30), against the active version's test F1.
+
+PSI below 0.10 is stable, 0.10 to 0.25 moderate and 0.25 or more significant. The status is **Not enough data** with fewer than 30 emergencies, **Retraining recommended** with a significant drift or an F1 more than 0.10 below the test F1, **Watch** with a moderate drift, more than 10% unseen municipalities or a flagged share that moved more than 10 points, and **Stable** otherwise.
+
+Administrators run checks from the Models page ("Run check", "Run simulated check"), which lists the 10 latest checks and the alerts of the latest one, or from the command line:
 
 ```bash
-python scripts/monitoring_test.py --rows 200 --out monitoring_output
+python manage.py monitor_models
+python manage.py monitor_models --simulate
+```
+
+`--simulate` scores 300 invented emergencies over the 90 days after the training period, half of them of the second most frequent event type. The check is saved and labelled as simulated, and no emergency is written. Impact estimators trained before monitoring existed have no score histogram, so their score drift shows "Not available until the next retrain".
+
+`scripts/monitoring_test.py` runs the same indicators without a database, on **simulated** reports labelled `SIMULATED` everywhere. It trains the model from `data/`, scores a normal batch and a batch shifted to Landslide, logs every prediction to JSON lines and gives each batch a status. On the default 300 rows the normal batch is stable (PSI type 0.019, department 0.030, score 0.048) and the shifted batch is retrain (PSI type 0.782).
+
+```bash
+python scripts/monitoring_test.py --rows 300 --out monitoring_output
 ```
 
 Outputs: `monitoring.log`, `predictions.jsonl`, `predictions_simulated.csv` and `summary.json` in the output folder.
@@ -206,6 +230,8 @@ python -m pytest
 3. Set `DATABASE_URL` to the Supabase shared pooler URL in session mode (port 5432). Render cannot reach Supabase's IPv6-only direct connection, so the pooler URL is required.
 4. Set `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` if they are not covered by the Render hostname.
 5. The build runs `build.sh` (install dependencies, collect static files, apply migrations). Render checks `/health/` to confirm the service is up.
+
+The deployed Django application is the demonstration of the models: reporting an emergency returns its predictions at once, so no separate Flask service is deployed.
 
 ## First administrator
 
