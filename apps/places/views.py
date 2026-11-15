@@ -5,7 +5,7 @@ from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import role_required
 from apps.accounts.roles import CAPABILITIES
-from ml.text import normalize_name
+from ml.text import normalize_name, normalize_proper_name
 
 from .forms import MunicipalityForm
 from .models import Department, Municipality
@@ -30,7 +30,7 @@ def municipality_list(request):
     else:
         department = ""
 
-    query = request.GET.get("q", "").replace("\x00", "").strip()
+    query = normalize_proper_name(request.GET.get("q", "").replace("\x00", ""))
     if query:
         municipalities = municipalities.filter(name_key__icontains=normalize_name(query))
 

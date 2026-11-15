@@ -2,7 +2,7 @@ import datetime
 from urllib.parse import urlencode
 
 from apps.history.models import UngrdRecord
-from ml.text import normalize_name
+from ml.text import normalize_name, normalize_proper_name
 
 HISTORY_PAGE_SIZE = 50
 
@@ -22,7 +22,7 @@ def filter_records(params):
     cleaned = {
         "type": _param(params, "type"),
         "department": _param(params, "department"),
-        "q": _param(params, "q"),
+        "q": normalize_proper_name(_param(params, "q")),
         "from": _iso_date(_param(params, "from")),
         "to": _iso_date(_param(params, "to")),
         "high": _param(params, "high"),

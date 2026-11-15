@@ -89,7 +89,7 @@ def test_summary_groups_by_type_and_municipality(make_emergency, flood, departme
     assert len(summary["by_municipality"]) == TOP_MUNICIPALITIES
     counts = [row[2] for row in summary["by_municipality"]]
     assert counts == sorted(counts, reverse=True)
-    assert summary["by_municipality"][0] == ("Town 11", "ANTIOQUIA", 12)
+    assert summary["by_municipality"][0] == ("TOWN 11", "ANTIOQUIA", 12)
 
 
 def test_ties_break_by_name(make_emergency, department):

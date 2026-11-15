@@ -6,7 +6,7 @@ from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
 
 from apps.accounts.roles import OPERATOR, get_role
-from ml.text import normalize_name
+from ml.text import normalize_name, normalize_proper_name
 
 from .models import Department, Municipality
 
@@ -23,7 +23,7 @@ def load_divipola(path: str | Path) -> int:
     departments = {
         row["department_code"]: Department(
             code=row["department_code"],
-            name=row["department_name"],
+            name=normalize_proper_name(row["department_name"]),
             name_key=normalize_name(row["department_name"]),
         )
         for row in rows
@@ -40,7 +40,7 @@ def load_divipola(path: str | Path) -> int:
         Municipality(
             department_id=department_ids[row["department_code"]],
             code=row["municipality_code"],
-            name=row["municipality_name"],
+            name=normalize_proper_name(row["municipality_name"]),
             name_key=normalize_name(row["municipality_name"]),
             latitude=float(row["latitude"]) if row["latitude"] else None,
             longitude=float(row["longitude"]) if row["longitude"] else None,

@@ -43,3 +43,18 @@ def test_as_options_ordered_by_name(db):
     Municipality.objects.create(department=department, name="ZARAGOZA")
     Municipality.objects.create(department=department, name="ABEJORRAL")
     assert [row[1] for row in Municipality.objects.all().as_options()] == ["ABEJORRAL", "ZARAGOZA"]
+
+
+def test_names_saved_in_capitals(db):
+    department = make_department(name="valle  del cauca")
+    municipality = Municipality.objects.create(department=department, name=" cajicá   norte")
+    assert department.name == "VALLE DEL CAUCA"
+    assert municipality.name == "CAJICÁ NORTE"
+
+
+def test_resaving_capitalized_name_changes_nothing(db):
+    municipality = Municipality.objects.create(department=make_department(), name="MEDELLÍN")
+    municipality.save()
+    municipality.refresh_from_db()
+    assert municipality.name == "MEDELLÍN"
+    assert municipality.name_key == "MEDELLIN"

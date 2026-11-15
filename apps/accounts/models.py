@@ -2,10 +2,15 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 from apps.accounts.roles import ADMINISTRATOR, CAPABILITIES, ROLE_LABELS, get_role
+from ml.text import normalize_proper_name
 
 
 class User(AbstractUser):
     organization = models.CharField(max_length=150, blank=True)
+
+    def save(self, *args, **kwargs):
+        self.organization = normalize_proper_name(self.organization)
+        super().save(*args, **kwargs)
 
     @property
     def role_label(self) -> str:

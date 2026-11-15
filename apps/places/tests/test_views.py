@@ -53,12 +53,12 @@ def test_operator_creates_pending(client, antioquia):
         reverse("places:municipality_create"), {"department": antioquia.pk, "name": "Nueva Villa"}
     )
     assert response.status_code == 302
-    created = Municipality.objects.get(name="Nueva Villa")
+    created = Municipality.objects.get(name="NUEVA VILLA")
     assert created.validation == Municipality.PENDING
     assert created.created_by == operator
 
     client.force_login(make_user("rita", RISK_MANAGER))
-    assert "Nueva Villa" in client.get(reverse("places:municipality_pending")).content.decode()
+    assert "NUEVA VILLA" in client.get(reverse("places:municipality_pending")).content.decode()
 
 
 def test_similar_name_requires_confirmation(client, medellin):
@@ -73,7 +73,7 @@ def test_similar_name_requires_confirmation(client, medellin):
 
     response = client.post(url, {**data, "confirm_new": "on"})
     assert response.status_code == 302
-    assert Municipality.objects.filter(name="Medelin").exists()
+    assert Municipality.objects.filter(name="MEDELIN").exists()
 
 
 def test_exact_duplicate_shows_form_error(client, medellin):
@@ -144,8 +144,8 @@ def test_operator_sees_only_own_pending(client, antioquia):
     Municipality.objects.create(department=antioquia, name="Theirs", validation=Municipality.PENDING, created_by=other)
     client.force_login(olga)
     content = client.get(reverse("places:municipality_list")).content.decode()
-    assert "Mine" in content
-    assert "Theirs" not in content
+    assert "MINE" in content
+    assert "THEIRS" not in content
 
 
 def test_search_ignores_accents(client, medellin):
@@ -195,7 +195,7 @@ def test_operator_similar_warning_hides_other_operators_pending(client, antioqui
         reverse("places:municipality_create"), {"department": antioquia.pk, "name": "Nueva Vila"}
     )
     assert response.status_code == 302
-    assert Municipality.objects.filter(name="Nueva Vila").exists()
+    assert Municipality.objects.filter(name="NUEVA VILA").exists()
 
 
 def test_list_drops_nul_bytes_from_search(client, medellin):
@@ -206,7 +206,7 @@ def test_list_drops_nul_bytes_from_search(client, medellin):
     assert response.context["query"] == ""
     response = client.get(url + "?q=med%00ellin")
     assert response.status_code == 200
-    assert response.context["query"] == "medellin"
+    assert response.context["query"] == "MEDELLIN"
     assert [m.pk for m in response.context["page"]] == [medellin.pk]
 
 

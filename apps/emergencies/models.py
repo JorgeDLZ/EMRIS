@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from ml.text import normalize_proper_name
+
 EARTHQUAKE = "Earthquake"
 
 
@@ -57,6 +59,10 @@ class Emergency(models.Model):
 
     def __str__(self):
         return f"{self.emergency_type} in {self.municipality} on {self.occurred_at:%Y-%m-%d}"
+
+    def save(self, *args, **kwargs):
+        self.site = normalize_proper_name(self.site)
+        super().save(*args, **kwargs)
 
     @property
     def is_closed(self):

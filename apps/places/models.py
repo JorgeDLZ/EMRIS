@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 
 from apps.accounts.roles import OPERATOR, get_role
-from ml.text import normalize_name
+from ml.text import normalize_name, normalize_proper_name
 
 
 class Department(models.Model):
@@ -17,6 +17,7 @@ class Department(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
+        self.name = normalize_proper_name(self.name)
         self.name_key = normalize_name(self.name)
         super().save(*args, **kwargs)
 
@@ -72,5 +73,6 @@ class Municipality(models.Model):
         return f"{self.name} ({self.department.name})"
 
     def save(self, *args, **kwargs):
+        self.name = normalize_proper_name(self.name)
         self.name_key = normalize_name(self.name)
         super().save(*args, **kwargs)

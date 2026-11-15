@@ -225,7 +225,7 @@ def test_inactive_type_is_not_offered_but_kept_on_edit(client, make_emergency, m
     )
     assert response.status_code == 302
     emergency.refresh_from_db()
-    assert emergency.site == "Updated site"
+    assert emergency.site == "UPDATED SITE"
 
 
 def test_edit_updates_emergency(client, make_emergency, medellin, flood):
@@ -237,7 +237,7 @@ def test_edit_updates_emergency(client, make_emergency, medellin, flood):
     )
     assert response.status_code == 302
     emergency.refresh_from_db()
-    assert emergency.site == "New site"
+    assert emergency.site == "NEW SITE"
 
 
 def test_list_filters_and_bad_page(client, antioquia, medellin, make_emergency, flood, earthquake):
@@ -636,7 +636,7 @@ def test_list_drops_nul_bytes_from_search(client, db):
     assert response.context["query"] == ""
     response = client.get(url + "?q=med%00ellin")
     assert response.status_code == 200
-    assert response.context["query"] == "medellin"
+    assert response.context["query"] == "MEDELLIN"
 
 
 @pytest.mark.parametrize("value", ["²", "99999999999"])
@@ -728,3 +728,10 @@ def test_emergency_list_pager_keeps_department(client, make_emergency, medellin)
         reverse("emergencies:emergency_list"), {"department": medellin.department_id}
     ).content.decode()
     assert f"department={medellin.department_id}&amp;" in html
+
+
+def test_search_is_echoed_in_capitals(client, make_emergency):
+    client.force_login(make_user("rita", RISK_MANAGER))
+    html = client.get(reverse("emergencies:emergency_list"), {"q": " medellín "}).content.decode()
+    assert 'value="MEDELLÍN"' in html
+    assert 'class="input-caps"' in html

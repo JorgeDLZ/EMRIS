@@ -47,6 +47,7 @@ class EmergencyForm(forms.ModelForm):
             "reported_magnitude",
             "reported_depth_km",
         ]
+        widgets = {"site": forms.TextInput(attrs={"class": "input-caps"})}
 
     def __init__(self, *args, user, **kwargs):
         super().__init__(*args, **kwargs)

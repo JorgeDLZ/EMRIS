@@ -13,7 +13,7 @@ from apps.intelligence.services import latest_predictions, predict_on_save, pred
 from apps.places.models import Department, Municipality
 from apps.plans.models import DONE
 from apps.seismic.services import clear_link, confirm_link, suggest_link
-from ml.text import normalize_name
+from ml.text import normalize_name, normalize_proper_name
 
 from .forms import EmergencyForm, EmergencyTypeForm, ImpactForm
 from .models import CLOSED, STATUS_CHOICES, Emergency, EmergencyType, Impact
@@ -135,7 +135,7 @@ def emergency_list(request):
     else:
         department = ""
 
-    query = request.GET.get("q", "").replace("\x00", "").strip()
+    query = normalize_proper_name(request.GET.get("q", "").replace("\x00", ""))
     if query:
         emergencies = emergencies.filter(municipality__name_key__icontains=normalize_name(query))
 

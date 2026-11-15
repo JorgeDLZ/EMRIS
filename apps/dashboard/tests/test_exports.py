@@ -156,7 +156,7 @@ def test_high_impact_rows_highlighted(client, world):
 
 
 def test_formula_like_text_stays_text(client, world):
-    formula = '=HYPERLINK("http://x","y")'
+    formula = '=HYPERLINK("HTTP://X","Y")'
     municipality = Municipality.objects.create(
         department=world["department"], code="11002", name=formula
     )

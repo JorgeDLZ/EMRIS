@@ -210,7 +210,7 @@ def test_nul_bytes_are_removed_from_filters(logged, records):
     response = logged.get(url, {"department": "05\x00", "q": "medel\x00lin", "type": f"{records[0].emergency_type_id}\x00"})
     assert response.status_code == 200
     assert response.context["cleaned"]["department"] == "05"
-    assert response.context["cleaned"]["q"] == "medellin"
+    assert response.context["cleaned"]["q"] == "MEDELLIN"
     assert "\x00" not in "".join(response.context["cleaned"].values())
 
 

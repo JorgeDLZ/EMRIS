@@ -5,5 +5,5 @@ from .models import Department
 
 class MunicipalityForm(forms.Form):
     department = forms.ModelChoiceField(queryset=Department.objects.order_by("name"))
-    name = forms.CharField(max_length=100)
+    name = forms.CharField(max_length=100, widget=forms.TextInput(attrs={"class": "input-caps"}))
     confirm_new = forms.BooleanField(required=False, label="This is a new municipality, register it anyway")

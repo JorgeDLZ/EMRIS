@@ -14,7 +14,7 @@ def test_register_creates_user_without_role(client, db):
     response = client.post(reverse("accounts:register"), VALID_DATA)
     user = User.objects.get(username="Ana")
     assert user.groups.count() == 0
-    assert user.organization == "Municipal council"
+    assert user.organization == "MUNICIPAL COUNCIL"
     assert response.status_code == 302
     assert response.url == reverse("accounts:pending")
 

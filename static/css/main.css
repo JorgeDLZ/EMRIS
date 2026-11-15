@@ -338,6 +338,7 @@ textarea {
   font: inherit;
 }
 
+.input-caps { text-transform: uppercase; }
 .field-error { margin: 4px 0 0; color: var(--danger-text); font-weight: 500; }
 .form-errors {
   margin-bottom: 16px;

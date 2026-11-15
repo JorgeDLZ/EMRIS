@@ -51,7 +51,7 @@ def test_load_keeps_user_municipalities(db):
     user_municipality = register_municipality(department, "Villa Nueva Test", make_user("op", OPERATOR))
     load_divipola(DIVIPOLA_PATH)
     reloaded = Municipality.objects.get(pk=user_municipality.pk)
-    assert reloaded.name == "Villa Nueva Test"
+    assert reloaded.name == "VILLA NUEVA TEST"
     assert reloaded.source == Municipality.USER
     assert reloaded.validation == Municipality.PENDING
     assert reloaded.code is None
@@ -136,6 +136,27 @@ def test_reject_refuses_municipality_in_use(db):
         municipality=municipality,
         occurred_at=timezone.now(),
     )
-    with pytest.raises(ValueError, match="Nuevo Lugar has emergencies and cannot be rejected."):
+    with pytest.raises(ValueError, match="NUEVO LUGAR has emergencies and cannot be rejected."):
         reject_municipality(municipality)
     assert Municipality.objects.filter(pk=municipality.pk).exists()
+
+
+def test_register_stores_name_in_capitals(db):
+    department = Department.objects.create(code="25", name="CUNDINAMARCA")
+    actor = User.objects.create_user("rita", password="pass-12345")
+    actor.groups.add(Group.objects.get(name=RISK_MANAGER))
+    assert register_municipality(department, "cajicá norte", actor).name == "CAJICÁ NORTE"
+    with pytest.raises(DuplicateMunicipality):
+        register_municipality(department, "Cajicá  Norte", actor)
+
+
+def test_load_divipola_stores_names_in_capitals(db, tmp_path):
+    source = tmp_path / "divipola.csv"
+    source.write_text(
+        "department_code,department_name,municipality_code,municipality_name,latitude,longitude\n"
+        "25,cundinamarca,25126,cajicá,4.9,-74.0\n",
+        encoding="utf-8",
+    )
+    load_divipola(source)
+    assert Department.objects.get(code="25").name == "CUNDINAMARCA"
+    assert Municipality.objects.get(code="25126").name == "CAJICÁ"

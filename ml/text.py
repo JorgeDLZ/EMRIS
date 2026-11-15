@@ -8,6 +8,10 @@ def normalize_name(text: str) -> str:
     return re.sub(r"\s+", " ", without_accents).strip().upper()
 
 
+def normalize_proper_name(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip().upper()
+
+
 def repair_mojibake(text: str) -> str:
     if "Ã" not in text:
         return text
