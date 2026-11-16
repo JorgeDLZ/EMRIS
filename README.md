@@ -62,6 +62,15 @@ The four components run inside the application. They are trained from the databa
 - **Emergency list:** open emergencies by estimated probability, those without an estimate last, followed by closed emergencies.
 - **Action plan page:** "Suggest plan" shows the 5 most similar past cases and the suggested actions, which can be added to the plan with one click.
 - **Models page (`/intelligence/`, administrators):** active versions and metrics, version history with Activate (rollback), monitoring checks, recent training runs and the Retrain button.
+- **Inference history (`/intelligence/predictions/`, administrators):** every stored prediction with its date, the user whose action ran it, the emergency, the model, a readable result, the model version and the server time it took, filtered by model, 50 per page.
+
+Every inference runs on the server and is stored as a `Prediction` row with the user (`requested_by`; empty for system runs), the model version and the response time (`duration_ms`). It also writes one log line to the service log, for example:
+
+```text
+INFO apps.intelligence.services: Inference impact v1 emergency=3 user=operator.demo score=0.3088 duration_ms=23.2
+```
+
+Unhandled errors (HTTP 500) are written to the same log through the `django.request` logger, in production too.
 
 Retraining runs in the background and trains the four components from the historical records plus the closed emergencies with a recorded impact. A new version is activated only if it passes the gate:
 

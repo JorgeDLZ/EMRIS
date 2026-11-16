@@ -258,3 +258,61 @@ def test_monitoring_requires_post_and_administrator(client, db):
         login(client, role)
         assert client.post(reverse("intelligence:run_monitoring"), {"simulate": "1"}).status_code == 403
     assert MonitoringCheck.objects.count() == 0
+
+
+def test_inference_history_is_administrator_only(client, db):
+    for role in (RISK_MANAGER, OPERATOR, ACTION_OWNER):
+        login(client, role)
+        assert client.get(reverse("intelligence:prediction_list")).status_code == 403
+    login(client, ADMINISTRATOR)
+    response = client.get(reverse("intelligence:prediction_list"))
+    assert response.status_code == 200
+    assert "No predictions have been stored yet" in response.content.decode()
+
+
+def test_inference_history_lists_user_version_result_and_time(client, db, synthetic):
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.emergencies.models import Emergency, EmergencyType
+    from apps.intelligence.models import Prediction
+    from apps.places.models import Department, Municipality
+
+    admin = login(client, ADMINISTRATOR)
+    train_initial()
+    version = ModelVersion.objects.get(component=IMPACT, is_active=True)
+    department = Department.objects.create(code="05", name="ANTIOQUIA")
+    municipality = Municipality.objects.create(department=department, code="05001", name="MEDELLÍN")
+    flood, _ = EmergencyType.objects.get_or_create(name="Flood")
+    emergency = Emergency.objects.create(
+        emergency_type=flood, municipality=municipality, occurred_at=timezone.now() - timedelta(hours=1)
+    )
+    Prediction.objects.create(
+        emergency=emergency,
+        model_version=version,
+        component=IMPACT,
+        output={"probability": 0.31, "is_high_impact": False},
+        score=0.31,
+        requested_by=admin,
+        duration_ms=12.34,
+    )
+    content = client.get(reverse("intelligence:prediction_list"), {"component": IMPACT}).content.decode()
+    assert "31% \u2014 not high impact" in content
+    assert f"v{version.version}" in content
+    assert admin.username in content
+    assert "12.3" in content
+
+
+def test_summaries_cover_every_component():
+    from apps.intelligence.models import MUNICIPAL_RISK, PROFILES, SIMILARITY, Prediction
+
+    def summary(component, output):
+        return views.summarize_prediction(Prediction(component=component, output=output))
+
+    assert summary(IMPACT, {"probability": None}) == "Not enough history for this event type"
+    assert summary(IMPACT, {"probability": 0.84, "is_high_impact": True}) == "84% \u2014 high impact"
+    assert summary(PROFILES, {"profile": "Injuries and deaths"}) == "Injuries and deaths"
+    assert summary(SIMILARITY, {"neighbors": [{}] * 5, "suggested_actions": ["a"]}) == "5 similar cases, 1 suggested action"
+    assert summary(MUNICIPAL_RISK, {"level": 2, "k": 3}) == "Risk level 2 of 3"
+    assert summary(MUNICIPAL_RISK, {"level": None, "k": 3}) == "Insufficient history"

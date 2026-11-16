@@ -177,7 +177,7 @@ def plan_suggest(request, emergency_pk):
     emergency = _visible_emergency(request.user, emergency_pk)
     if not _can_suggest(request.user, emergency, getattr(emergency, "action_plan", None)):
         raise PermissionDenied
-    if suggest_similar(emergency) is None:
+    if suggest_similar(emergency, request.user) is None:
         messages.error(request, "Suggestions are unavailable right now.")
     else:
         messages.success(request, "Similar emergencies were found.")

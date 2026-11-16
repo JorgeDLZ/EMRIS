@@ -129,5 +129,9 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {"plain": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"}},
     "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "plain"}},
-    "loggers": {"apps": {"handlers": ["console"], "level": "INFO"}},
+    "loggers": {
+        "apps": {"handlers": ["console"], "level": "INFO"},
+        # Unhandled errors (HTTP 500) reach the service log in production too.
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+    },
 }

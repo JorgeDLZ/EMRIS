@@ -81,6 +81,17 @@ class Prediction(models.Model):
     component = models.CharField(max_length=20, choices=COMPONENT_CHOICES)
     output = models.JSONField()
     score = models.FloatField(null=True, blank=True)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        help_text="User whose action ran the inference (empty for system runs).",
+    )
+    duration_ms = models.FloatField(
+        null=True, blank=True, help_text="Server time spent on the inference, in milliseconds."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

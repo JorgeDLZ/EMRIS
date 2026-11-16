@@ -226,3 +226,25 @@ def test_list_shows_dash_and_sorts_unknown_after_estimates(client, db, make_emer
     )
     assert "—" in row
     assert "%" not in row
+
+
+def test_panel_explains_meaning_use_and_limitations(client, db, make_emergency):
+    emergency = make_emergency()
+    prediction = add_prediction(emergency, IMPACT, impact_output(0.31), score=0.31)
+    ModelVersion.objects.filter(pk=prediction.model_version_id).update(
+        metrics={"recall": 0.756, "precision": 0.384}
+    )
+    page = detail(client, emergency).content.decode()
+    assert "How to read this estimate" in page
+    assert "What it means:" in page
+    assert "How to use it:" in page
+    assert "found 76% of the high-impact emergencies and 38% of its alerts were right" in page
+
+
+def test_panel_limitations_without_test_metrics(client, db, make_emergency):
+    emergency = make_emergency()
+    prediction = add_prediction(emergency, IMPACT, impact_output(0.31), score=0.31)
+    ModelVersion.objects.filter(pk=prediction.model_version_id).update(metrics={})
+    page = detail(client, emergency).content.decode()
+    assert "Limitations:" in page
+    assert "of its alerts were right" not in page

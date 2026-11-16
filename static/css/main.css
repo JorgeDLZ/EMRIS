@@ -528,3 +528,7 @@ textarea {
 .pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 24px; }
 .form-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: 8px; }
 .back-link { margin-top: 24px; }
+
+.model-help { margin-top: 12px; font-size: 0.9rem; }
+.model-help > summary { cursor: pointer; font-weight: 600; }
+.model-help p { margin: 8px 0 0; }

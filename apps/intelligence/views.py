@@ -3,13 +3,24 @@ import threading
 
 from django.conf import settings
 from django.contrib import messages
+from django.core.paginator import Paginator
 from django.db import connections
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from apps.accounts.permissions import role_required
 from apps.accounts.roles import CAPABILITIES
-from apps.intelligence.models import COMPONENT_CHOICES, ModelVersion, MonitoringCheck, TrainingRun
+from apps.intelligence.models import (
+    COMPONENT_CHOICES,
+    IMPACT,
+    MUNICIPAL_RISK,
+    PROFILES,
+    SIMILARITY,
+    ModelVersion,
+    MonitoringCheck,
+    Prediction,
+    TrainingRun,
+)
 from apps.intelligence.monitoring import MonitoringUnavailable, run_check
 from apps.intelligence.training import (
     RetrainInProgress,
@@ -26,6 +37,8 @@ RECENT_CHECKS = 10
 NOT_AVAILABLE = "—"
 NO_SCORE_REFERENCE = "Not available until the next retrain"
 SCORE_STEP = 5
+PREDICTION_PAGE_SIZE = 50
+COMPONENT_LABELS = dict(COMPONENT_CHOICES)
 
 
 def run_in_thread(runs):
@@ -153,3 +166,55 @@ def run_monitoring(request):
     prefix = "Simulated monitoring check" if simulate else "Monitoring check"
     messages.success(request, f"{prefix} saved: {check.get_status_display()}.")
     return redirect("intelligence:model_list")
+
+
+def summarize_prediction(prediction):
+    """One readable line for a stored inference result."""
+    output = prediction.output or {}
+    if prediction.component == IMPACT:
+        probability = output.get("probability")
+        if probability is None:
+            return "Not enough history for this event type"
+        label = "high impact" if output.get("is_high_impact") else "not high impact"
+        return f"{probability:.0%} \u2014 {label}"
+    if prediction.component == PROFILES:
+        return output.get("profile", NOT_AVAILABLE)
+    if prediction.component == SIMILARITY:
+        cases = len(output.get("neighbors", []))
+        actions = len(output.get("suggested_actions", []))
+        return f"{cases} similar case{'s' if cases != 1 else ''}, {actions} suggested action{'s' if actions != 1 else ''}"
+    if prediction.component == MUNICIPAL_RISK:
+        level = output.get("level")
+        return "Insufficient history" if level is None else f"Risk level {level} of {output.get('k')}"
+    return NOT_AVAILABLE
+
+
+@role_required(*CAPABILITIES["manage_models"])
+def prediction_list(request):
+    component = request.GET.get("component", "")
+    predictions = (
+        Prediction.objects.select_related(
+            "emergency__emergency_type", "emergency__municipality", "model_version", "requested_by"
+        )
+        .defer("model_version__artifact")
+        .order_by("-created_at", "-pk")
+    )
+    if component in COMPONENT_LABELS:
+        predictions = predictions.filter(component=component)
+    else:
+        component = ""
+    page = Paginator(predictions, PREDICTION_PAGE_SIZE).get_page(request.GET.get("page"))
+    rows = [
+        {"prediction": prediction, "summary": summarize_prediction(prediction)} for prediction in page
+    ]
+    return render(
+        request,
+        "intelligence/prediction_list.html",
+        {
+            "page": page,
+            "rows": rows,
+            "component": component,
+            "components": COMPONENT_CHOICES,
+            "querystring": f"component={component}" if component else "",
+        },
+    )

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}EMRIS — Inference history{% endblock %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1>Inference history</h1>
+      <p>{{ page.paginator.count }} stored prediction{{ page.paginator.count|pluralize }}. Each one keeps its date, the user whose action ran it, the result, the model version and the server time it took.</p>
+    </div>
+  </div>
+  {% include "_messages.html" %}
+
+  <form method="get" class="card filter-bar">
+    <div class="form-field">
+      <label for="component">Model</label>
+      <select name="component" id="component">
+        <option value="">All models</option>
+        {% for value, label in components %}
+          <option value="{{ value }}"{% if value == component %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-field">
+      <button type="submit" class="btn btn-primary">Filter</button>
+    </div>
+  </form>
+
+  {% if rows %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Emergency</th><th>Model</th><th>Result</th><th>Version</th><th>User</th><th>Time (ms)</th></tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            {% with prediction=row.prediction %}
+              <tr>
+                <td>{{ prediction.created_at|date:"Y-m-d H:i" }}</td>
+                <td><a href="{% url 'emergencies:emergency_detail' prediction.emergency_id %}">{{ prediction.emergency.emergency_type.name }} in {{ prediction.emergency.municipality.name }}</a></td>
+                <td>{{ prediction.get_component_display }}</td>
+                <td>{{ row.summary }}</td>
+                <td>v{{ prediction.model_version.version }}</td>
+                <td>{% if prediction.requested_by %}{{ prediction.requested_by.username }}{% else %}System{% endif %}</td>
+                <td>{% if prediction.duration_ms is not None %}{{ prediction.duration_ms|floatformat:1 }}{% else %}—{% endif %}</td>
+              </tr>
+            {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">
+      <p>No predictions have been stored yet. They appear when an emergency is reported or edited, its impact is recorded, or a plan is suggested.</p>
+    </div>
+  {% endif %}
+
+  {% if page.has_other_pages %}
+    <p class="pager">
+      {% if page.has_previous %}<a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
+      <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a href="?{% if querystring %}{{ querystring }}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
+    </p>
+  {% endif %}
+{% endblock %}

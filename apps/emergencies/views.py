@@ -44,6 +44,11 @@ def _impact_factors(output):
     return factors
 
 
+def _rounded_share(value):
+    """A test metric as a whole percentage, or None when the version has none."""
+    return None if value is None else round(float(value) * 100)
+
+
 def _intelligence_panel(emergency, has_impact):
     predictions = latest_predictions(emergency)
     panel = {"has_impact": has_impact}
@@ -57,6 +62,8 @@ def _intelligence_panel(emergency, has_impact):
             "factors": _impact_factors(impact.output),
             "is_directional": impact.output.get("kind") == "logistic_regression",
             "version": impact.model_version,
+            "recall": _rounded_share(impact.model_version.metrics.get("recall")),
+            "precision": _rounded_share(impact.model_version.metrics.get("precision")),
         }
     profile = predictions.get(PROFILES)
     if profile is not None:
@@ -189,7 +196,7 @@ def emergency_create(request):
         emergency = create_emergency(
             request.user, **{name: form.cleaned_data[name] for name in EmergencyForm.Meta.fields}
         )
-        predict_on_save(emergency)
+        predict_on_save(emergency, request.user)
         messages.success(request, "The emergency was reported.")
         return redirect("emergencies:emergency_detail", pk=emergency.pk)
     return _render_emergency_form(request, form, None)
@@ -269,7 +276,8 @@ def emergency_edit(request, pk):
     if request.method == "POST" and form.is_valid():
         _save_emergency_fields(request.user, emergency, form)
         predict_on_save(
-            Emergency.objects.select_related("emergency_type", "municipality__department").get(pk=pk)
+            Emergency.objects.select_related("emergency_type", "municipality__department").get(pk=pk),
+            request.user,
         )
         messages.success(request, "The emergency was updated.")
         return redirect("emergencies:emergency_detail", pk=emergency.pk)
@@ -288,7 +296,7 @@ def impact_edit(request, pk):
         except WorkflowError as error:
             messages.error(request, str(error))
         else:
-            predict_profile(emergency)
+            predict_profile(emergency, request.user)
             messages.success(request, "The impact was saved.")
         return redirect("emergencies:emergency_detail", pk=emergency.pk)
     return render(request, "emergencies/impact_form.html", {"form": form, "emergency": emergency})

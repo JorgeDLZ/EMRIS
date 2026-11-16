@@ -80,6 +80,27 @@ def test_predict_on_save_stores_versioned_predictions(db, trained, emergency):
     assert risk.output["level"] is not None
 
 
+def test_prediction_records_user_and_response_time(db, trained, emergency, caplog):
+    from apps.accounts.models import User
+
+    activate_models(trained, (IMPACT, MUNICIPAL_RISK))
+    user = User.objects.create_user("operator-1", password="pass-12345")
+    with caplog.at_level("INFO", logger="apps.intelligence.services"):
+        services.predict_on_save(emergency, user)
+    for prediction in Prediction.objects.all():
+        assert prediction.requested_by == user
+        assert prediction.duration_ms is not None and prediction.duration_ms >= 0
+    lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("Inference ")]
+    assert len(lines) == 2
+    assert all("user=operator-1" in line and "duration_ms=" in line for line in lines)
+
+
+def test_prediction_without_user_is_a_system_run(db, trained, emergency):
+    activate_models(trained, (IMPACT,))
+    services.predict_on_save(emergency)
+    assert Prediction.objects.get(component=IMPACT).requested_by is None
+
+
 def test_no_active_model_stores_nothing(db, emergency):
     services.predict_on_save(emergency)
     services.predict_profile(emergency)

@@ -21,6 +21,12 @@
           </ul>
         {% endif %}
         <p class="item-meta">{{ panel.impact.version }}</p>
+        <details class="model-help">
+          <summary>How to read this estimate</summary>
+          <p><strong>What it means:</strong> the chance that this emergency becomes high impact (deaths, injuries, destroyed homes, or among the worst 10% of people or hectares affected for its type), estimated from its type, place and month only.</p>
+          <p><strong>How to use it:</strong> open emergencies are listed from the highest estimate down, so the council can decide which one to attend first. It does not replace the field assessment.</p>
+          <p><strong>Limitations:</strong>{% if panel.impact.recall is not None %} on months it had not seen, this version found {{ panel.impact.recall }}% of the high-impact emergencies and {{ panel.impact.precision }}% of its alerts were right.{% endif %} It knows nothing reported after the first report, and it tends to underestimate severe wildfires and landslides.</p>
+        </details>
       {% elif panel.impact_reason == "not_enough_history" %}
         <p>Not enough history for this emergency type</p>
       {% else %}

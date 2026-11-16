@@ -15,6 +15,7 @@ EVERYTHING = {
     "Resources",
     "Risk ranking",
     "Models",
+    "Inference history",
     "UNGRD history",
     "Municipalities",
     "Pending municipalities",
@@ -23,7 +24,7 @@ EVERYTHING = {
 }
 MATRIX = {
     ADMINISTRATOR: EVERYTHING,
-    RISK_MANAGER: EVERYTHING - {"Models", "Users"},
+    RISK_MANAGER: EVERYTHING - {"Models", "Inference history", "Users"},
     OPERATOR: {
         "Home",
         "Dashboard",

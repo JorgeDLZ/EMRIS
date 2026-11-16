@@ -9,4 +9,5 @@ urlpatterns = [
     path("retrain/", views.retrain, name="retrain"),
     path("versions/<int:pk>/activate/", views.activate, name="activate"),
     path("monitoring/run/", views.run_monitoring, name="run_monitoring"),
+    path("predictions/", views.prediction_list, name="prediction_list"),
 ]

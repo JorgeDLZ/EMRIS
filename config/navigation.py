@@ -74,7 +74,17 @@ MENU: tuple[tuple[str, tuple[MenuEntry, ...]], ...] = (
                 ("dashboard:ranking",),
             ),
             MenuEntry(
-                "Models", "intelligence:model_list", CAPABILITIES["manage_models"], ("intelligence:*",)
+                "Models",
+                "intelligence:model_list",
+                CAPABILITIES["manage_models"],
+                ("intelligence:*",),
+                ("intelligence:prediction_list",),
+            ),
+            MenuEntry(
+                "Inference history",
+                "intelligence:prediction_list",
+                CAPABILITIES["manage_models"],
+                ("intelligence:prediction_list",),
             ),
         ),
     ),

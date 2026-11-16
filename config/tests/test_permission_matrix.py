@@ -59,6 +59,7 @@ VIEW_CAPABILITY = {
     "intelligence:retrain": "manage_models",
     "intelligence:activate": "manage_models",
     "intelligence:run_monitoring": "manage_models",
+    "intelligence:prediction_list": "manage_models",
     "places:municipality_list": "register_municipalities",
     "places:municipality_create": "register_municipalities",
     "places:municipality_pending": "validate_municipalities",
